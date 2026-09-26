@@ -1,0 +1,433 @@
+================================================================================
+BINARY STRUCTURE ANALYSIS : PlayerDataSaveSlot.sav
+================================================================================
+Game      : Assetto Corsa Rally
+Engine    : Unreal Engine 5.4.3 (game 0.4)  /  5.6.1 (game 0.6)
+Save class: /Script/dmengine.SaveGameSlot
+Format    : GVAS (Unreal Engine Generic Save)
+Encoding  : Little-Endian; strings = null-terminated with int32 length prefix
+            (length INCLUDES the null terminator; length 0 = empty string,
+             stored as 4 zero bytes with no content)
+            Unreal's FString rule, not observed in these files (all ASCII):
+            a string that is not pure ASCII is written as UTF-16LE under a
+            NEGATIVE length counting 2-byte code units, null included.
+
+Reference files analysed:
+  PlayerDataSaveSlot_20260509_095118.bak   80 425 B   game 0.4, UE 5.4.3
+  PlayerDataSaveSlot-0.6.sav              110 242 B   game 0.6, UE 5.6.1
+--------------------------------------------------------------------------------
+
+TABLE OF CONTENTS
+  1. GVAS header
+  2. Secondary header + property preamble
+  3. PlayerSaveGameData block
+     3.1  Player settings
+     3.2  Vehicle and location inventory / roster
+     3.3  Race event configuration (event configs)
+     3.4  Stage, car and weather selection (after the event config list)
+  4. Locating sections without hard-coded offsets
+  5. Differences 0.4 -> 0.6
+  6. Notes for modification
+
+WARNING: every offset below shifts between game versions, the GVAS custom
+version table having grown (109 -> 117 entries, i.e. +160 B).  Never hard-code
+an offset — see §4.
+
+================================================================================
+1. GVAS HEADER
+================================================================================
+
+Offset  Size    Type      Value (0.4)             Value (0.6)
+------  ------  --------  ----------------------  --------------------
+0x0000   4 B    char[4]   "GVAS"                  "GVAS"
+0x0004   4 B    int32     Save game file version : 3              3
+0x0008   4 B    int32     Package file UE version : 522           522
+0x000C   4 B    int32     Package file UE version 2 : 1012        1017
+0x0010   2 B    uint16    Engine version major : 5                5
+0x0012   2 B    uint16    Engine version minor : 4                6
+0x0014   2 B    uint16    Engine version patch : 3                1
+0x0016   4 B    uint32    Engine CL (changelist) : 0              0
+0x001A   var    FString   Engine branch : "UE5"  (len=4)
+0x0021   4 B    int32     Custom format version : 3               3
+0x0025   4 B    int32     Custom format count : 109               117
+0x0029   var    Entry[]   count × (UUID[16 B] + int32[4 B])
+                          2180 B (0.4)            2340 B (0.6)
+  v 0x08AE (0.4) / 0x094E (0.6)
+         var    FString   Save game class name :
+                          "/Script/dmengine.SaveGameSlot"  (len=30)
+
+NOTE: FString = int32 (length including the null) + string bytes + \0
+
+================================================================================
+2. SECONDARY HEADER + PROPERTY PREAMBLE
+================================================================================
+
+                            Offset 0.4   Offset 0.6   Description
+                            ----------   ----------   ------------------------
+  pad                        0x08D0       0x0970      1 B, always 0x00
+  FString "None"             0x08D1       0x0971      len=5, empty UE property
+                                                      list
+  flags                      0x08DA       0x097A      int32, always 0
+  secondary custom count     0x08DE       0x097E      int32 : 12 (0.4) / 14 (0.6)
+  secondary custom entries   0x08E2       0x0982      count × (UUID + int32)
+                                                      240 B (0.4) / 280 B (0.6)
+  property_count             0x09D2       0x0A9A      int32 = 1
+  FString "PlayerSaveGameData"0x09D6      0x0A9E      len=19
+  start of data              0x09ED       0x0AB5
+
+ATTENTION: there is NO padding byte between the secondary custom table and
+property_count (an earlier version of this document claimed one, from a
+misreading of the table's last version field).
+
+Secondary custom format UUIDs (0.4, offset 0x08E2) :
+  [0]  ff1b31d9-2e42-be13-f4f5-01a460ed55cd  v=3
+  [1]  d932e457-ce47-ca11-f6d0-1bab05bc713a  v=6
+  [2]  5507f3a0-6064-5ef4-8af5-7dcaf471ea2d  v=0
+  [3]  1222fcb5-726a-feb2-1564-12c73ef9ae8c  v=2
+  [4]  a4428953-6115-2dd4-7905-a93db5c54d58  v=1
+  [5]  820e1e72-4b9d-35d2-0c75-8fc43e8d7734  v=0
+  [6]  9d3e57d6-ea00-fcf7-3b33-bbcc6458cb20  v=0
+  [7]  697f088c-8845-b58f-1e50-4c98512f3595  v=1
+  [8]  911c4dd1-9f48-fbb0-f379-21bcdeab35cc  v=3
+  [9]  da0dab8f-5045-0d22-7343-f5896ce45ed8  v=1
+  [10] aa1c1ee2-5e42-47af-d46a-bf89bba8444c  v=0
+  [11] ed68b0e4-e942-94f4-0bda-31a241bb462e  v=40
+In 0.6 the table holds 14 entries; the first two are unchanged.
+
+================================================================================
+3. PlayerSaveGameData BLOCK
+================================================================================
+
+Root structure (0x09ED in 0.4, 0x0AB5 in 0.6) :
+  int32  size_field_1    // 77 880 (0.4) / 107 497 (0.6)
+  int32  size_field_2    // 87 (0x57) in both versions
+  [custom binary data — see the sections below]
+
+INVARIANT VERIFIED in both versions:
+  size_field_1 == file_size - (offset_of_size_field_1 + 4)
+Inserting or removing bytes anywhere in the block must update that field (which
+is what ACR Save Manager does when it writes an event config block back).  There
+is no checksum of any kind.
+
+--------------------------------------------------------------------------------
+3.1  PLAYER SETTINGS
+--------------------------------------------------------------------------------
+(section not re-checked during the 0.6 analysis — layout comes from 0.4)
+
+Field                   Type        Observed value
+----------------------  ----------  -------------------------------------------
+language_code           FString     "fr"
+input_bindings          bytes[19]   "ZPPP\0<<<ZZPPP<P<" (gamepad layout)
+language_full           FString     "French"
+time_of_day_default     FString     "Late"
+
+--- Camera / assist floats ---
+float32[]               ~50 floats  FOV, camera sensitivity, assists (ABS, TC,
+                                    ESP...), difficulty levels
+
+--- Graphics settings ---
+scalability_preset      FString     "Custom"
+scalability_resolution  float32[2]  e.g. 160.0, 100.0  (resolution scale %)
+
+scalability_settings[]  15 entries, each:
+  { FString setting_name ; FString enum_type ; int32 quality_value }
+
+Quality settings present (in order):
+  #   setting_name                    enum_type
+  --  ------------------------------  ------------------------------------
+  0   CloudsQuality                   EAlwaysOnScalabilityQuality
+  1   CharactersQuality               EAllScalabilityQuality
+  2   DynamicReflectionQuality        EAllScalabilityQuality
+  3   SSRQuality                      EAlwaysOnScalabilityQuality
+  4   TextureQuality                  EAlwaysOnScalabilityQuality
+  5   AntiAliasingQuality             EAlwaysOnScalabilityQuality
+  6   GrassDensity                    EAlwaysOnScalabilityQuality
+  7   FoliageQuality                  EAlwaysOnFiveScalabilityQuality
+  8   ShadowQuality                   EAlwaysOnFiveScalabilityQuality
+  9   PostProcessQuality              EAlwaysOnScalabilityQuality
+  10  EffectsQuality                  EAlwaysOnScalabilityQuality
+  11  CarDeformationsQuality          EAlwaysOnFiveScalabilityQuality
+  12  CrowdQuality                    EAlwaysOnFiveScalabilityQuality
+  13  InteractiveElementsQuality      EAlwaysOnScalabilityQuality
+  14  LCDGaugeQuality                 EAlwaysOnScalabilityQuality (value=0)
+
+--------------------------------------------------------------------------------
+3.2  VEHICLE AND LOCATION INVENTORY / ROSTER
+--------------------------------------------------------------------------------
+
+Right before the event config list (§3.3) sit two lists of the same shape: a run
+of elements { FString name ; int64 ticks } — the int64 being a .NET timestamp
+(UTC), most likely an unlock or last-used date.  The location list is preceded
+by its own int32 counter:
+
+  locations 0.4 : count = 2   -> "Wales", "Alsace"
+  locations 0.6 : count = 4   -> "Wales", "Alsace", "MonteCarlo", "Greece"
+
+The cars appear just before, in the same shape (VWPoloGTIR5,
+LanciaRally037Evo2, SkodaFabiaRSRally2, ...).  The per-car detail (upgrade
+levels, stats) was not re-validated on 0.6 and remains to be confirmed.
+
+The location counter sits immediately before the first location name, and the
+list is immediately followed by the event config counter (§3.3).
+
+--------------------------------------------------------------------------------
+3.3  RACE EVENT CONFIGURATION (event configs)
+--------------------------------------------------------------------------------
+
+List PREFIXED BY ITS COUNTER (int32) :
+  n_events   4 B   int32    4 in 0.4 (offset 0x16E9) / 5 in 0.6 (offset 0x16E1)
+  [n_events] × EventConfig
+
+EventConfig structure:
+  event_name      var   FString   e.g. "DefaultRally"
+  n_components     4 B  int32     1 in every case observed
+  [n_components] × Component :
+    class_path    var   FString   "ERaceEventSerializableContext::RaceEventSettings"
+                                  (len=49 — this is NOT a "/Script/..." path)
+    nb_uuids       4 B  int32     1 or 2
+    uuids       nb×16 B UUID[]    nb_uuids × 16 raw bytes
+    extra_ints (nb+1)×4 int32[]   (nb_uuids + 1) extra int32
+    comp_name     var   FString   e.g. "RaceEventRaceSettingsRallyWeekendComponent"
+    data_size      4 B  int32     size of the data that follows
+    data      data_size B bytes   opaque component data
+
+Events and components observed:
+
+  0.4 (n_events = 4)                      data_size   nb_uuids
+  --------------------------------------  ---------   --------
+  DefaultFreePractice  -> ...FreePracticeComponent  72       1
+  DefaultTimeAttack    -> ...TimeAttackComponent   118       1
+  DefaultSingleStage   -> ...SingleEventComponent   96       1
+  DefaultRally         -> ...RallyWeekendComponent var       2
+
+  0.6 (n_events = 5) : the same, plus
+  DefaultOnlineSingleStage -> ...SingleEventComponent 73      2
+
+ACR Save Manager extracts the whole list with the selection that follows it
+(Race tab, §3.4), and writes back the event configs picked, by name.  A block
+starts at the length prefix of its event_name and ends exactly where the next
+event config starts.  Measured sizes:
+
+  DefaultRally         1 567 B in 0.4 (AlsaceWeekendLong)
+                         618 B in 0.6 (MontecarloWeekendShort)
+  DefaultTimeAttack      274 B in both versions
+  DefaultFreePractice    232 B in both versions
+
+Only DefaultRally names its configuration inside its blob (see below); the
+others hold numeric settings only — no block names a stage or a car.
+
+Content of the RallyWeekendComponent data blob (partially decoded):
+  +0x00   fixed fields (version, flags, floats) — 96 bytes
+  +0x60   FString  rally name, e.g. "MontecarloWeekendShort"
+          int32    number of stages in the itinerary
+          int32    0
+          [stages] × { FString stage ; numeric fields, not decoded ;
+                       FString service park or zone, e.g. "ServiceParkDefault",
+                       "NoZone" }
+
+  The counter matches the stage names that follow: 2 in 0.6 (445 B of blob),
+  9 in 0.4 (1 394 B — three loops of three stages).
+
+  The weather options are NOT in this blob: they sit past the end of the whole
+  event config list, in a section of their own (§3.4).
+
+Common prefix of the component data (partially decoded).  Measured on five 0.6
+saves of two players, three of them written in a row while only the Free
+Practice settings changed; offsets from the start of the data:
+
+  +0x00   int32    1
+  +0x04   bytes    02 01, then three int32 = 1        identical everywhere
+  +0x12   3 bytes  3 3 3 in most blocks                moved with the Free
+                                                       Practice settings
+  +0x15   byte     0..8                                most likely the weather
+                                                       type
+  +0x16   float32  0..1                                the weather RandomUniform:
+                                                       equals the §3.4 value in
+                                                       four cases
+  +0x1A   int32    0
+  +0x1E   byte     0, 2 or 7                           not identified
+  +0x1F   float32  0..1                                not identified
+  +0x23   int32    0
+  +0x27   bytes    01 02
+  +0x29   byte     0 / 1                               the weather bRandom:
+                                                       matches §3.4 three times
+                                                       out of three
+  +0x2A   3 bytes  0
+  +0x2D   float32  start time, in seconds              30600 = 08:30, 36000 =
+                                                       10:00, set in the menu
+  +0x31   int32    changes on every save               probably a random seed
+  +0x35   float32  0, 0.5, 0.76, 0.8                   not identified
+  +0x39   float32  0, 0.15, 0.3, 0.4                   not identified
+  +0x3D   3 bytes  small values                        moved with the Free
+                                                       Practice settings
+
+  Past +0x40 each component has its own tail: the FreePractice data stops at
+  72 B; the TimeAttack data holds an FString "None", four FF bytes and two
+  floats (0.1, 0.75), and is byte-identical in every save seen; the
+  SingleEvent data holds two floats (0.8, 0.1) and a few int32.
+
+  So a block carries its own start time and weather, and §3.4 a copy of them
+  next to the stage and the car.
+
+--------------------------------------------------------------------------------
+3.4  STAGE, CAR AND WEATHER SELECTION (after the event config list)
+--------------------------------------------------------------------------------
+
+Immediately after the last event config comes a short section that belongs to
+no block.  It is what the Free Practice menu shows: between two 0.6 saves where
+only the Free Practice stage and settings changed, this section and the Free
+Practice block changed, and nothing else in the list.  That the other
+single-stage modes read it too is likely — it is the only stage and car in the
+list — but not verified.  The JSON export calls it "weather_settings".
+
+  stage        var  FString   e.g. "GreeceS3ElatiaCut2Forward"
+  car          var  FString   e.g. "SkodaFabiaRSRally2"
+  n_options     4 B int32     3 in both versions
+  [n_options] × { FString path ; FString value } :
+    "/Script/acr.WeatherOptions/StartingTime"
+        -> "(TimeSeconds=30600.000000)"
+    "/Script/acr.WeatherOptions/Preset"
+        -> "(WeatherType=WT_LIGHT_CLOUDS,RandomUniform=0.963836,bRandom=False)"
+    "/Script/acr.WeatherOptions/TimeSpeed"
+        -> "WT_SPEEDREALISTIC"
+
+  The options come in no fixed order: another 0.6 save lists Preset first,
+  then StartingTime and TimeSpeed.  Read them by their path, never by rank.
+
+  Measured: the event config list ends at 0x2004 (0.4) and 0x1D48 (0.6), while
+  the first option path starts at 0x203D and 0x1D85 — outside every block.
+
+  It is not the rally weekend's weather either: in 0.6 the stage named here is
+  GreeceS3ElatiaCut2Forward while the weekend blob names
+  MonteCarloS2SisteronCut2Reverse.
+
+  Consequence for §3.3: a block extracted alone stops at the end of that
+  block, so none of this travels with it.  The list and this section are
+  contiguous — from n_events to the last option value — and that run of bytes
+  is what a .race file holds.  Writing one back replaces the events by name,
+  as ticked, and the selection only when ticked: a 0.4 list has four events
+  where 0.6 has five.
+
+================================================================================
+4. LOCATING SECTIONS WITHOUT HARD-CODED OFFSETS
+================================================================================
+
+Offsets move with every game version, and event names change (0.6 added
+DefaultOnlineSingleStage).  ACR Save Manager uses two methods, both
+independent of the version:
+
+  1. String anchoring, for the one field named in a stable way:
+     * "PlayerSaveGameData\0"  -> size_field_1, right after the FString
+
+     ATTENTION: an event name appears up to twice in the file — once as the
+     event config (§3.3), once inside another block that reuses the name, the
+     other occurrence holding different fields after it.  Anchoring an event
+     config on its name alone lands on the wrong one; the tool finds the whole
+     list by method 2 instead.
+
+  2. Structural validation, for the lists whose names vary:
+     the section is parsed at every candidate offset and the first one that
+     decodes completely is kept (consistent counter, printable null-terminated
+     ASCII FStrings, plausible bounds on the counters).  That is how the event
+     config list (§3.3) is located, without a single hard-coded name.
+     The stage, car and weather selection (§3.4) is then read forward from
+     the end of that list: none of its option paths comes first in every
+     save, so none can anchor it.
+
+     Plausibility bounds used (one set, shared by the scanner and by the
+     reading of a .race file):
+       n_events 2..64 ; n_components 1..8 ; nb_uuids 0..8 ; data_size 0..500 000
+       FString length 1..2000
+       identifiers: 3..64 characters, [A-Za-z][A-Za-z0-9_]*
+
+================================================================================
+5. DIFFERENCES 0.4 -> 0.6
+================================================================================
+
+  1. Engine: UE 5.4.3 -> 5.6.1; package UE5 version 1012 -> 1017; custom version
+     table 109 -> 117 entries (+160 B).  Everything after the header shifts by
+     160 bytes.
+  2. Secondary customs: 12 -> 14 entries (+40 B).
+  3. A fifth event config: DefaultOnlineSingleStage.
+  4. A new country: Greece (locations 2 -> 4 with MonteCarlo and Greece).
+  5. NO structural change: the GVAS header, the event configs and the
+     size_field_1 invariant are identical.  The reading problems met on the
+     0.6 files came from wrong assumptions already present for 0.4
+     (occurrence #2 of a name), not from a format change.
+
+================================================================================
+6. NOTES FOR MODIFICATION
+================================================================================
+
+1. STRINGS (FString)
+   - Always preceded by a little-endian int32 giving the length WITH the
+     trailing \0
+   - e.g. "French" = 07 00 00 00 + 46 72 65 6e 63 68 00
+   - Length 0 = empty string (4 zero bytes, no content)
+   - A negative length means UTF-16LE and counts 2-byte code units (see the
+     encoding note at the top)
+   - When you change a string, update its length prefix TOO
+
+2. FLOATS
+   - IEEE 754 float32 little-endian; durations are in SECONDS (e.g. 114.795)
+   - In Python: struct.pack('<f', seconds)
+
+3. INTEGERS
+   - All signed little-endian int32 unless stated otherwise
+   - Counters must stay consistent with the number of entries that follow
+
+4. TIMESTAMPS
+   - int64 little-endian = .NET ticks (100 ns since 0001-01-01), in UTC
+   - Present in the car / location lists
+
+5. UUIDS
+   - 16 raw bytes (no dashes); do not touch the ones in the GVAS header
+
+6. FILE SIZE
+   - No CRC and no signature: the game trusts the content
+   - BUT size_field_1 must always equal file_size - (offset + 4)
+
+================================================================================
+PYTHON MODIFICATION EXAMPLES
+================================================================================
+
+import struct
+
+def read_fstring(data, off):
+    l = struct.unpack_from('<i', data, off)[0]
+    if l == 0:
+        return '', off + 4                      # empty string
+    if l < 0:                                   # UTF-16LE, -l code units
+        n = -l * 2
+        return data[off+4:off+4+n-2].decode('utf-16-le'), off + 4 + n
+    if l > 4096:
+        return None, off
+    s = data[off+4:off+4+l-1].decode('utf-8', errors='replace')
+    return s, off + 4 + l
+
+def write_fstring(s):
+    if s == '':
+        return struct.pack('<i', 0)
+    if any(ord(c) > 0x7f for c in s):           # not pure ASCII: UTF-16LE
+        b = (s + '\x00').encode('utf-16-le')
+        return struct.pack('<i', -(len(s) + 1)) + b
+    b = s.encode('ascii') + b'\x00'
+    return struct.pack('<i', len(b)) + b
+
+def read_ticks(data, off):
+    ticks = struct.unpack_from('<q', data, off)[0]
+    return ticks, off + 8                       # .NET UTC ticks
+
+# Example: fix up size_field_1 after a modification
+# off = index of "PlayerSaveGameData\0" - 4 ; off += 4 + fstring_length
+# struct.pack_into('<i', data, off, len(data) - (off + 4))
+
+================================================================================
+END OF DOCUMENT
+================================================================================
+Updated : 2026-09-24  (0.6 / UE 5.6.1 analysis)
+Source  : hex analysis of PlayerDataSaveSlot_20260509_095118.bak (0.4) and
+          PlayerDataSaveSlot-0.6.sav (0.6), cross-checked against
+          Services/GvasHeader.cs, Services/EventConfig.cs, Services/EventList.cs,
+          Services/SaveFileParser.cs and Services/PlayerSaveJson.cs
+================================================================================

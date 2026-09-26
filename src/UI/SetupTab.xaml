@@ -1,0 +1,85 @@
+<UserControl x:Class="ACRSaveManager.UI.SetupTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Styles and brushes live in MainWindow.Resources, which is only reachable once
+       this control is in the tree: DynamicResource, not StaticResource. -->
+      <DockPanel LastChildFill="True">
+
+        <!-- Import/Export (pinned to bottom) -->
+        <GroupBox DockPanel.Dock="Bottom" Header="Import / Export" Margin="0,10,0,0">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <Button Content="Export selected setup" Style="{DynamicResource RowButton}"
+                      Click="BtnExportSetup_Click"/>
+              <Button Content="Rename selected setup" Style="{DynamicResource WriteButton}"
+                      Click="BtnRenameSetup_Click"/>
+              <Button Content="Remove" Style="{DynamicResource WriteButton}" Margin="0"
+                      Click="BtnRemoveSetup_Click"/>
+            </StackPanel>
+            <DockPanel>
+              <TextBlock x:Name="TxtSetupFileVersion" DockPanel.Dock="Right"
+                         Style="{DynamicResource VersionBadge}"
+                         ToolTip="Game build that wrote this setup"/>
+              <TextBox x:Name="TxtSetupFile" Style="{DynamicResource PathBox}"/>
+            </DockPanel>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <Button Content="Select a .setup" Style="{DynamicResource RowButton}"
+                      Click="BtnSelectImport_Click"/>
+              <Button Content="Import to sav" Style="{DynamicResource WriteButton}"
+                      Click="BtnImportSetup_Click"/>
+              <CheckBox x:Name="ChkBackupOnImport" Content="Backup before import" IsChecked="True"
+                        VerticalAlignment="Center" Margin="6,0,0,0"
+                        ToolTip="Write a timestamped .bak next to the sav before importing."/>
+            </StackPanel>
+          </StackPanel>
+        </GroupBox>
+
+        <!-- Save file selector (pinned to top) -->
+        <GroupBox DockPanel.Dock="Top" Header="Setup file (.sav)">
+          <StackPanel>
+            <DockPanel>
+              <TextBlock x:Name="TxtSetupVersion" DockPanel.Dock="Right"
+                         Style="{DynamicResource VersionBadge}"
+                         ToolTip="Engine build of this save — the game build belongs to each setup, see the Build column"/>
+              <TextBox x:Name="TxtSetupPath" Style="{DynamicResource PathBox}"/>
+            </DockPanel>
+            <StackPanel Orientation="Horizontal">
+              <Button Content="Select…" Style="{DynamicResource RowButton}" Click="BtnBrowseSetup_Click"/>
+              <Button Content="Open folder" Style="{DynamicResource RowButton}" Click="BtnOpenSetupDir_Click"/>
+              <Button Content="Reload" Style="{DynamicResource RowButton}" Click="BtnReloadSetups_Click"/>
+              <Button Content="Restore" Style="{DynamicResource RowButton}" Click="BtnRestoreSetup_Click"/>
+              <Button Content="Backup" Click="BtnBackupSetup_Click"/>
+            </StackPanel>
+          </StackPanel>
+        </GroupBox>
+
+        <!-- Setup list (fills remaining space) -->
+        <GroupBox Header="Setups" Margin="0">
+          <DataGrid x:Name="GridSetups"
+                    AutoGenerateColumns="False"
+                    IsReadOnly="True"
+                    SelectionMode="Single"
+                    SelectionUnit="FullRow"
+                    CanUserResizeRows="False"
+                    VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled"
+                    GridLinesVisibility="Horizontal"
+                    HeadersVisibility="Column">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Car"    Binding="{Binding CarName}"   Width="3*"/>
+              <DataGridTextColumn Header="Name"   Binding="{Binding SetupName}" Width="3*"/>
+              <DataGridTextColumn Header="Author" Binding="{Binding Author}"    Width="2*"/>
+              <DataGridTextColumn Header="Track"  Binding="{Binding Track}"     Width="3*"/>
+              <!-- build that wrote the entry: a file mixes several of them -->
+              <DataGridTextColumn Header="Build"  Binding="{Binding GameVersion}" Width="2*"/>
+              <!-- the time as the game wrote it, on the player's own clock, like
+                   the timestamp in the export file name -->
+              <DataGridTextColumn Header="Date"
+                                  Binding="{Binding DisplayTimestamp, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
+                                  Width="2*"/>
+            </DataGrid.Columns>
+          </DataGrid>
+        </GroupBox>
+
+      </DockPanel>
+</UserControl>

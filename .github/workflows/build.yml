@@ -1,0 +1,161 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    # PR builds require the IS_PUBLIC repo variable; forks/mirrors without it
+    # can still build any branch manually via "Run workflow".
+    if: github.event_name != 'pull_request' || vars.IS_PUBLIC == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      # -warnaserror: the project builds with zero warnings, unused usings included
+      # (IDE0005, see the csproj), and CI keeps it that way.
+      - name: Build
+        run: dotnet build ACRSaveManager.csproj -c Release -nologo -warnaserror
+
+      # Layout drift fails the build too: the sources must already be exactly what
+      # `dotnet format whitespace` produces from .editorconfig (run it locally to fix).
+      - name: Check formatting
+        run: dotnet format whitespace ACRSaveManager.csproj --verify-no-changes
+
+      - name: Test
+        run: dotnet test tests/ACRSaveManager.Tests -c Release --nologo
+
+      # The .editorconfig style and analyzer rules on the app and on the tests,
+      # and the tests' layout. One command per step: a multi-line PowerShell step
+      # only reports the exit code of its last command, so a failure in any
+      # command above the last one would pass unnoticed.
+      - name: Check formatting (tests)
+        run: dotnet format whitespace tests/ACRSaveManager.Tests/ACRSaveManager.Tests.csproj --verify-no-changes
+
+      - name: Format check (app, style)
+        run: dotnet format ACRSaveManager.csproj style --verify-no-changes --severity info
+
+      - name: Format check (app, analyzers)
+        run: dotnet format ACRSaveManager.csproj analyzers --verify-no-changes --severity info
+
+      - name: Format check (tests, style)
+        run: dotnet format tests/ACRSaveManager.Tests/ACRSaveManager.Tests.csproj style --verify-no-changes --severity info
+
+      - name: Format check (tests, analyzers)
+        run: dotnet format tests/ACRSaveManager.Tests/ACRSaveManager.Tests.csproj analyzers --verify-no-changes --severity info
+
+      # Manual runs ("Run workflow") also produce a downloadable test exe. It keeps
+      # the csproj's "-dev" suffix, and the commit sha baked into the version already
+      # tells two test builds apart — and apart from a release (plain x.y.z).
+      - name: Publish test exe
+        if: github.event_name == 'workflow_dispatch'
+        run: >
+          dotnet publish ACRSaveManager.csproj -c Release -r win-x64
+          --no-self-contained
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish/fd
+
+      # archive: false ships the exe as-is instead of wrapping it in a zip, so the
+      # download needs no unpacking. The artifact then takes the file name and the
+      # "name" input is ignored — the run number is on the run page anyway.
+      - name: Upload test exe
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          path: publish/fd/ACRSaveManager.exe
+          retention-days: 7
+          archive: false
+
+  release:
+    # Publish and attach binaries when a version tag (v1.2.3) is pushed,
+    # unless the IS_PUBLIC repo variable is absent (forks/mirrors).
+    if: startsWith(github.ref, 'refs/tags/v') && vars.IS_PUBLIC == 'true'
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # full history + tags: the release notes list the commits since the
+          # previous version tag
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      # The run: scripts read the tag and version from environment variables instead of
+      # having ${{ }} expressions pasted into their text, so a ref name is never parsed
+      # as PowerShell code.
+      - name: Version from tag
+        shell: pwsh
+        run: |
+          $v = $env:GITHUB_REF_NAME.TrimStart('v')
+          "VERSION=$v" >> $env:GITHUB_ENV
+
+      # One bullet per commit since the previous tag, prepended to the release
+      # body (still hand-editable on the release page afterwards).
+      - name: Commit list since previous tag
+        shell: pwsh
+        run: |
+          $prev = git describe --tags --abbrev=0 "$env:GITHUB_REF_NAME^" 2>$null
+          if ($LASTEXITCODE -ne 0) { $prev = $null }
+          $range = if ($prev) { "$prev..$env:GITHUB_REF_NAME" } else { $env:GITHUB_REF_NAME }
+          "CHANGES<<__CHANGES__" | Add-Content $env:GITHUB_ENV
+          git log --format='- %s' $range | Add-Content $env:GITHUB_ENV
+          "__CHANGES__" | Add-Content $env:GITHUB_ENV
+          exit 0
+
+      - name: Publish (framework-dependent, needs .NET 10 Desktop Runtime)
+        run: >
+          dotnet publish ACRSaveManager.csproj -c Release -r win-x64
+          --no-self-contained
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Version=$env:VERSION
+          -o publish/fd
+
+      - name: Rename asset
+        shell: pwsh
+        run: Copy-Item publish/fd/ACRSaveManager.exe "ACRSaveManager-$env:VERSION-win-x64.exe"
+
+      - name: SHA-256 checksum
+        shell: pwsh
+        run: |
+          $file = "ACRSaveManager-$env:VERSION-win-x64.exe"
+          $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLower()
+          "$hash  $file" | Out-File "$file.sha256" -Encoding ascii -NoNewline
+          "SHA256=$hash" >> $env:GITHUB_ENV
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            ACRSaveManager-${{ env.VERSION }}-win-x64.exe
+            ACRSaveManager-${{ env.VERSION }}-win-x64.exe.sha256
+          body: |
+            ## Changes
+            ${{ env.CHANGES }}
+
+            ## Documentation
+            - [README (English)](${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/README.md)
+            - [README en français](${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/README.fr.md)
+
+            **SHA-256** — `ACRSaveManager-${{ env.VERSION }}-win-x64.exe`
+            ```
+            ${{ env.SHA256 }}
+            ```
+          generate_release_notes: true

@@ -1,0 +1,472 @@
+<Window x:Class="ACRSaveManager.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:ui="clr-namespace:ACRSaveManager.UI"
+        Title="ACR Save Manager" Height="660" Width="780"
+        MinHeight="600" MinWidth="640"
+        WindowStyle="None" ResizeMode="CanResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource Brush.Window}" Foreground="{DynamicResource Brush.Text}"
+        FontFamily="Segoe UI" FontSize="13">
+  <shell:WindowChrome.WindowChrome>
+    <!-- CaptionHeight = the title bar row: Windows itself drags the window from it,
+         maximises / restores on double-click, restores a maximised window dragged
+         away and shows the system menu. The caption buttons opt out through
+         IsHitTestVisibleInChrome. -->
+    <shell:WindowChrome CaptionHeight="36" ResizeBorderThickness="6" CornerRadius="0"
+                       GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+  </shell:WindowChrome.WindowChrome>
+  <Window.Resources>
+    <!-- Themeable brushes, same keys and values as ACR Live Timing. These light
+         defaults let the designer render; the code-behind overwrites every key on
+         startup from the light/dark palette (default = OS preference). All chrome
+         below references them via DynamicResource so a theme switch repaints
+         instantly. -->
+    <SolidColorBrush x:Key="Brush.Window"        Color="#F5F6F8"/>
+    <SolidColorBrush x:Key="Brush.Card"          Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Input"         Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.Border"        Color="#D0D7DE"/>
+    <SolidColorBrush x:Key="Brush.BorderHover"   Color="#BFC7CF"/>
+    <SolidColorBrush x:Key="Brush.WindowOutline" Color="#57606A"/>
+    <SolidColorBrush x:Key="Brush.Text"          Color="#1F2328"/>
+    <SolidColorBrush x:Key="Brush.ButtonText"    Color="#24292F"/>
+    <SolidColorBrush x:Key="Brush.ButtonBg"      Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.ButtonHover"   Color="#F3F4F6"/>
+    <SolidColorBrush x:Key="Brush.ButtonPressed" Color="#E7E9EC"/>
+    <SolidColorBrush x:Key="Brush.Muted"         Color="#656D76"/>
+    <SolidColorBrush x:Key="Brush.Faint"         Color="#8C959F"/>
+    <SolidColorBrush x:Key="Brush.Danger"        Color="#B42318"/>
+    <SolidColorBrush x:Key="Brush.SwitchOff"     Color="#CDD3DA"/>
+    <SolidColorBrush x:Key="Brush.SwitchOn"      Color="#656D76"/>
+    <SolidColorBrush x:Key="Brush.SwitchThumb"   Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="Brush.ScrollTrack"      Color="#ECEEF1"/>
+    <SolidColorBrush x:Key="Brush.ScrollThumb"      Color="#C4CBD3"/>
+    <SolidColorBrush x:Key="Brush.ScrollThumbHover" Color="#AEB6BF"/>
+    <!-- grid-only keys (ACR Live Timing has no data grid) -->
+    <SolidColorBrush x:Key="Brush.RowAlt"        Color="#F6F8FA"/>
+    <SolidColorBrush x:Key="Brush.Selection"     Color="#DDE7F2"/>
+
+    <!-- flat themed scrollbar: thin, rounded thumb, no arrow buttons -->
+    <Style x:Key="ScrollThumbStyle" TargetType="Thumb">
+      <Setter Property="OverridesDefaultStyle" Value="True"/>
+      <Setter Property="IsTabStop" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb">
+            <Border x:Name="tb" CornerRadius="5" Background="{DynamicResource Brush.ScrollThumb}"
+                    MinHeight="28" MinWidth="28" Margin="2" SnapsToDevicePixels="True"/>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="tb" Property="Background" Value="{DynamicResource Brush.ScrollThumbHover}"/>
+              </Trigger>
+              <Trigger Property="IsDragging" Value="True">
+                <Setter TargetName="tb" Property="Background" Value="{DynamicResource Brush.ScrollThumbHover}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <!-- transparent page-scroll areas around the thumb (no arrow chrome) -->
+    <Style x:Key="ScrollPageButton" TargetType="RepeatButton">
+      <Setter Property="OverridesDefaultStyle" Value="True"/>
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="IsTabStop" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RepeatButton">
+            <Border Background="Transparent"/>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+      <Setter Property="OverridesDefaultStyle" Value="True"/>
+      <Setter Property="Width" Value="12"/>
+      <Setter Property="Background" Value="{DynamicResource Brush.ScrollTrack}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Border Background="{TemplateBinding Background}" CornerRadius="6">
+              <Track x:Name="PART_Track" Orientation="Vertical" IsDirectionReversed="True">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Style="{StaticResource ScrollPageButton}" Command="ScrollBar.PageUpCommand"/>
+                </Track.DecreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb Style="{StaticResource ScrollThumbStyle}"/>
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Style="{StaticResource ScrollPageButton}" Command="ScrollBar.PageDownCommand"/>
+                </Track.IncreaseRepeatButton>
+              </Track>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto"/>
+                <Setter Property="Height" Value="12"/>
+                <Setter TargetName="PART_Track" Property="Orientation" Value="Horizontal"/>
+                <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- iOS-style toggle switch built on CheckBox: pill track + sliding thumb -->
+    <Style x:Key="ToggleSwitch" TargetType="CheckBox">
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <Border x:Name="track" Width="40" Height="22" CornerRadius="11"
+                    Background="{DynamicResource Brush.SwitchOff}"
+                    SnapsToDevicePixels="True">
+              <Ellipse x:Name="thumb" Width="16" Height="16"
+                       Fill="{DynamicResource Brush.SwitchThumb}"
+                       Stroke="{DynamicResource Brush.BorderHover}" StrokeThickness="0.5"
+                       HorizontalAlignment="Left" Margin="3,0,0,0"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="track" Property="Background" Value="{DynamicResource Brush.SwitchOn}"/>
+                <Setter TargetName="thumb" Property="HorizontalAlignment" Value="Right"/>
+                <Setter TargetName="thumb" Property="Margin" Value="0,0,3,0"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- flat card GroupBox: thin border, rounded, header label on top -->
+    <Style TargetType="GroupBox">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Muted}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+      <Setter Property="Margin" Value="0,0,0,10"/>
+      <Setter Property="Padding" Value="12,6,12,12"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="GroupBox">
+            <Border BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                    CornerRadius="8" Background="{DynamicResource Brush.Card}"
+                    SnapsToDevicePixels="True">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="{TemplateBinding Header}"
+                           Foreground="{TemplateBinding Foreground}" FontWeight="SemiBold"
+                           FontSize="14" Margin="14,10,14,0"/>
+                <ContentPresenter Margin="{TemplateBinding Padding}"/>
+              </DockPanel>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- flat button: 1px border, subtle hover, no default 3D chrome -->
+    <Style TargetType="Button">
+      <Setter Property="Background" Value="{DynamicResource Brush.ButtonBg}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Brush.ButtonText}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="10,6"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="bd" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="6" SnapsToDevicePixels="True">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Margin="{TemplateBinding Padding}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.ButtonHover}"/>
+                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource Brush.BorderHover}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.ButtonPressed}"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- buttons sit in horizontal rows; the trailing one clears its own margin -->
+    <Style x:Key="RowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Margin" Value="0,0,6,0"/>
+    </Style>
+    <!-- writes to the sav: same flat chrome, danger-coloured label so a destructive
+         action never looks like a read-only one -->
+    <Style x:Key="WriteButton" TargetType="Button" BasedOn="{StaticResource RowButton}">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+
+    <!-- caption buttons stay invisible at rest; their square hover area matches
+         the close button without inheriting the rounded normal Button chrome. -->
+    <Style x:Key="CaptionButton" TargetType="Button">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{DynamicResource Brush.ButtonText}"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="FontSize" Value="10"/>
+      <Setter Property="Cursor" Value="Arrow"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="bd" Background="{TemplateBinding Background}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.ButtonHover}"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.ButtonPressed}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <!-- Windows-style close button: only turns red on hover. -->
+    <Style x:Key="CloseCaptionButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="bd" Background="{TemplateBinding Background}">
+              <ContentPresenter x:Name="cp" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="#E81123"/>
+                <Setter Property="Foreground" Value="White"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="#C50F1F"/>
+                <Setter Property="Foreground" Value="White"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- flat tabs: no boxed chrome, selected tab marked by an underline -->
+    <Style TargetType="TabControl">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TabControl">
+            <DockPanel>
+              <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource Brush.Border}"
+                      BorderThickness="0,0,0,1" Margin="0,0,0,10">
+                <TabPanel IsItemsHost="True" Panel.ZIndex="1" Margin="0,0,0,-1"/>
+              </Border>
+              <!-- the name is the contract: TabItemAutomationPeer looks it up in the
+                   TabControl's template to give the selected tab's content a parent
+                   in the accessibility tree. Without it a screen reader sees the tab
+                   headers and nothing else. -->
+              <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"/>
+            </DockPanel>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="TabItem">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Muted}"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TabItem">
+            <Border x:Name="bd" Background="Transparent" BorderThickness="0,0,0,2"
+                    BorderBrush="Transparent" Padding="16,8" SnapsToDevicePixels="True">
+              <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"
+                                TextBlock.FontSize="14" TextBlock.FontWeight="SemiBold"
+                                TextBlock.Foreground="{TemplateBinding Foreground}"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource Brush.Text}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- data grid: flat, card-coloured, themed header and selection -->
+    <Style TargetType="DataGrid">
+      <Setter Property="Background" Value="{DynamicResource Brush.Card}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+      <Setter Property="RowBackground" Value="{DynamicResource Brush.Card}"/>
+      <Setter Property="AlternatingRowBackground" Value="{DynamicResource Brush.RowAlt}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Brush.Border}"/>
+      <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+      <Setter Property="RowHeight" Value="26"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style TargetType="DataGridColumnHeader">
+      <Setter Property="Background" Value="{DynamicResource Brush.Card}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Muted}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Padding" Value="8,6"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="DataGridColumnHeader">
+            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}">
+              <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <!-- no Background here: the grid's RowBackground / AlternatingRowBackground
+         paint the rows, and a style setter would take precedence over both -->
+    <Style TargetType="DataGridRow">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+    </Style>
+    <Style TargetType="DataGridCell">
+      <Setter Property="Padding" Value="8,3"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="DataGridCell">
+            <Border x:Name="bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+              <ContentPresenter VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.Selection}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="TextBox">
+      <Setter Property="Background" Value="{DynamicResource Brush.Input}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="5,3"/>
+    </Style>
+    <!-- read-only path fields: same chrome, muted text, monospaced -->
+    <Style x:Key="PathBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+      <Setter Property="IsReadOnly" Value="True"/>
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Muted}"/>
+      <Setter Property="FontFamily" Value="Consolas"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Margin" Value="0,0,0,8"/>
+    </Style>
+    <!-- build marker shown at the right end of a file path row -->
+    <Style x:Key="VersionBadge" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Faint}"/>
+      <Setter Property="FontFamily" Value="Consolas"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Margin" Value="10,0,2,8"/>
+    </Style>
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+    </Style>
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+    </Style>
+  </Window.Resources>
+
+  <Border BorderBrush="{DynamicResource Brush.WindowOutline}" BorderThickness="1">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="36"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <Border Grid.Row="0" Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
+            BorderThickness="0,0,0,1">
+      <Grid>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+          <Image Source="pack://application:,,,/assets/icon.ico" Width="20" Height="20"/>
+          <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}"
+                     VerticalAlignment="Center" Margin="8,0,0,0" FontWeight="SemiBold"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+          <Button Style="{StaticResource CaptionButton}" Content="&#xE921;" FontFamily="Segoe MDL2 Assets" Width="44" Height="35"
+                  shell:WindowChrome.IsHitTestVisibleInChrome="True" Click="MinimizeBtn_Click" ToolTip="Minimize"/>
+          <Button x:Name="MaximizeBtn" Style="{StaticResource CaptionButton}" Content="&#xE922;" FontFamily="Segoe MDL2 Assets" Width="44" Height="35"
+                  shell:WindowChrome.IsHitTestVisibleInChrome="True" Click="MaximizeBtn_Click" ToolTip="Maximize / restore"/>
+          <Button Style="{StaticResource CloseCaptionButton}" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" Width="44" Height="35"
+                  shell:WindowChrome.IsHitTestVisibleInChrome="True" Click="CloseBtn_Click" ToolTip="Close"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1" Margin="12">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- status + theme -->
+        <RowDefinition Height="*"/>      <!-- tabs -->
+      </Grid.RowDefinitions>
+
+      <!-- status bar -->
+      <Border Grid.Row="0" Background="{DynamicResource Brush.Card}" CornerRadius="8"
+              BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1"
+              Padding="12,8" Margin="0,0,0,10">
+        <!-- toggle docked first, status last: the status fills what is left and
+             trims to it. Docked the other way round, a long status (a full path
+             after Read & extract) pushed the toggle out of the window. -->
+        <DockPanel LastChildFill="True">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center"
+                      Margin="12,0,0,0"
+                      ToolTip="Toggle the light / dark theme. Initialised from your Windows setting.">
+            <TextBlock x:Name="ThemeLabel" Text="Light mode" Foreground="{DynamicResource Brush.Muted}"
+                       VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <CheckBox x:Name="ThemeToggle" Style="{StaticResource ToggleSwitch}"
+                      Checked="ThemeToggle_Changed" Unchecked="ThemeToggle_Changed"/>
+          </StackPanel>
+          <TextBlock x:Name="TxtStatus" Text="Ready."
+                     VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis"/>
+        </DockPanel>
+      </Border>
+
+      <TabControl Grid.Row="1">
+
+        <TabItem Header="Setup">        <ui:SetupTab x:Name="TabSetup"/>        </TabItem>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             TAB 2 — race configurations: every event config of the player save,
+             with the stage, car and weather selection past them
+             ══════════════════════════════════════════════════════════════ -->
+        <TabItem Header="Race">
+          <ui:RaceTab x:Name="TabRace"/>
+        </TabItem>
+
+      </TabControl>
+    </Grid>
+  </Grid>
+  </Border>
+</Window>

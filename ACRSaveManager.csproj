@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ACRSaveManager</RootNamespace>
+    <AssemblyName>ACRSaveManager</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <!-- Required by the LibraryImport source generator, which writes the P/Invoke
+         marshalling stubs (SYSLIB1054). No unsafe code is written by hand. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Code-style rules raised to warning in .editorconfig (unused usings) run in the build.
+         The compiler reports unused usings only when it also produces the XML documentation
+         file: that file is generated but neither required for every member (CS1591) nor
+         published next to the exe. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <PublishDocumentationFile>false</PublishDocumentationFile>
+    <!-- The test suite lives under tests/ with its own project: keep its
+         sources out of this one's **/*.cs glob. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests\**</DefaultItemExcludes>
+    <!-- Multi-size .ico built from assets/icon.svg (+ icon-16.svg simplified
+         variant) by tools/build-icon.py. -->
+    <ApplicationIcon>assets\icon.ico</ApplicationIcon>
+    <Copyright>Copyright (C) 2026 Florent DESCHAMPS</Copyright>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <!-- Fallback when the source is outside a Git checkout. Development builds in a
+         checkout replace this with the latest version tag below; release builds pass
+         -p:Version=x.y.z explicitly. AppInfo then appends the commit sha to identify
+         individual prerelease builds. -->
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionSuffix>dev</VersionSuffix>
+    <Authors>Florent DESCHAMPS</Authors>
+    <Company>Florent DESCHAMPS</Company>
+    <Product>ACR Save Manager</Product>
+    <AssemblyTitle>ACR Save Manager</AssemblyTitle>
+    <Description>Save file manager for Assetto Corsa Rally — export, import, rename and remove car setups, extract and write back the race configurations of every game mode, timestamped backups.</Description>
+    <RepositoryUrl>https://github.com/FlorentDChamps/acr-save-manager</RepositoryUrl>
+  </PropertyGroup>
+
+  <!-- Make local/dev builds report the latest release they are based on instead of
+       the static fallback above (v1.2.3 becomes 1.2.3-dev). An explicitly supplied
+       release Version deliberately bypasses this target. -->
+  <Target Name="SetDevelopmentVersionFromGitTag"
+          BeforeTargets="GetAssemblyVersion"
+          Condition="'$(Version)' == '$(VersionPrefix)-$(VersionSuffix)'">
+    <PropertyGroup>
+      <_GitSafeDirectory>$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace('\', '/'))</_GitSafeDirectory>
+    </PropertyGroup>
+    <Exec Command="git -c safe.directory=$(_GitSafeDirectory) describe --tags --abbrev=0 2&gt;NUL"
+          ConsoleToMSBuild="true"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low"
+          StandardErrorImportance="Low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_LatestGitTagOutput" />
+    </Exec>
+    <PropertyGroup Condition="'$(_LatestGitTagOutput)' != ''">
+      <_LatestGitTag>$([System.String]::Copy('$(_LatestGitTagOutput)').Trim())</_LatestGitTag>
+      <_LatestGitTag>$([System.Text.RegularExpressions.Regex]::Replace('$(_LatestGitTag)', '^v', ''))</_LatestGitTag>
+      <Version>$(_LatestGitTag)-$(VersionSuffix)</Version>
+    </PropertyGroup>
+  </Target>
+
+  <ItemGroup>
+    <!-- App.xaml lives under src/, so the root-only auto-glob misses it:
+         declare it as the entry point and drop it from the Page glob. -->
+    <ApplicationDefinition Include="src\App.xaml" />
+    <Page Remove="src\App.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shown in the custom title bar, so it must ship as a WPF resource too. -->
+    <Resource Include="assets\icon.ico" />
+  </ItemGroup>
+
+</Project>

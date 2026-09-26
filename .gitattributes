@@ -1,0 +1,4 @@
+# Normalise line endings to LF (repo AND working tree) -> no CRLF warning
+* text=auto eol=lf
+# Batch files must keep CRLF (cmd.exe label/GOTO parsing quirks with LF)
+*.bat text eol=crlf

@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Tests for src/Services, on saves built in code (Fixtures/SaveBuilder.cs)
+       from made-up values. RealSampleTests replays the same checks on a folder
+       of real saves named by ACRSM_SAMPLES, and skips without it. Those saves
+       carry player names and progress: they never enter the repository.
+       Run:  dotnet test tests/ACRSaveManager.Tests
+       With real saves:  set ACRSM_SAMPLES=<folder of saves> first. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Overridable, to run the same tests against another copy of the sources. -->
+    <ServicesDir Condition="'$(ServicesDir)' == ''">..\..\src\Services</ServicesDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The services have no WPF dependency: compile them as they are. -->
+    <Compile Include="$(ServicesDir)\*.cs" LinkBase="Services" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <!-- Same implicit usings as the app: a WPF project gets neither of these two.
+         The service sources are compiled here as they are, and with System.IO
+         implicit the `using System.IO;` the app needs would read as unused. -->
+    <Using Remove="System.IO" />
+    <Using Remove="System.Net.Http" />
+  </ItemGroup>
+
+</Project>

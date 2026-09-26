@@ -1,0 +1,21 @@
+# Save samples used to reverse the binary formats (local only: real player names,
+# progress and setups), and files exported from them. The formats themselves are
+# documented in docs/.
+inputs/
+*.sav
+*.bak
+*.setup
+*.race
+*.weekend
+
+# Local tooling / IDE (but .github must stay versioned: workflows, FUNDING)
+.*/
+!.github/
+*.sln
+
+# .NET build output
+bin/
+obj/
+*.user
+publish/
+TestResults/

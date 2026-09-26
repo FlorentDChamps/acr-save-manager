@@ -1,0 +1,339 @@
+================================================================================
+BINARY STRUCTURE ANALYSIS : CarSetupsDataSaveSlot.sav
+================================================================================
+Game      : Assetto Corsa Rally
+Engine    : Unreal Engine 5.4.3 (game 0.4)  /  5.6.1 (game 0.6)
+Save class: /Script/dmengine.SaveGameSlot
+Format    : GVAS (Unreal Engine Generic Save)
+Encoding  : Little-Endian; strings = null-terminated with int32 length prefix
+            (length INCLUDES the null terminator; length 0 = empty string,
+             stored as 4 zero bytes with no content and no terminator)
+            Unreal's FString rule, met in a 0.6 save on a setup named with
+            an accent: a string that is not pure ASCII is written as
+            UTF-16LE under a NEGATIVE length counting 2-byte code units,
+            null included — "Été" = FC FF FF FF  C9 00 74 00 E9 00 00 00.
+            A parser must never add a negative length to its cursor as a
+            byte count.  ACR Save Manager writes names the same way, and a
+            setup it renamed with accents loads in the game under that
+            name (tested in game 0.6).
+
+Reference files analysed:
+  CarSetupsDataSaveSlot.sav        56 396 B   game 0.4, UE 5.4.3, 4 cars / 15 setups
+  CarSetupsDataSaveSlot-0.6.sav   142 812 B   game 0.6, UE 5.6.1, 7 cars / 38 setups
+--------------------------------------------------------------------------------
+
+TABLE OF CONTENTS
+  1. GVAS Header
+  2. Secondary Header
+  3. Property Preamble
+  4. CarSetupsSaveGameData blob
+     4.1  Blob header
+     4.2  Per-car block
+     4.3  Per-setup entry
+     4.4  Entry header fields
+     4.5  Conditions block
+     4.6  Key-Value pairs (setup parameters)
+  5. Sample data (CarSetupsDataSaveSlot-0.6.sav)
+  6. Version differences 0.4 → 0.6
+
+IMPORTANT: every offset below shifts between game versions, because the GVAS
+custom-version table grew (109 → 117 entries).  Never hard-code offsets; locate
+the blob by searching for the FString content "CarSetupsSaveGameData\0" — the
+blob starts immediately after it.
+
+================================================================================
+1. GVAS HEADER
+================================================================================
+
+Offset   Size   Type       Value (0.4)            Value (0.6)
+-------  -----  ---------  ---------------------  ---------------------
+0x0000    4 B   char[4]    "GVAS"                 "GVAS"
+0x0004    4 B   int32      Save version : 3       3
+0x0008    4 B   int32      UE package version : 522              522
+0x000C    4 B   int32      UE5 package version : 1012            1017
+0x0010    2 B   uint16     Engine major : 5       5
+0x0012    2 B   uint16     Engine minor : 4       6
+0x0014    2 B   uint16     Engine patch : 3       1
+0x0016    4 B   uint32     Engine CL : 0          0
+0x001A    var   FString    Engine branch : "UE5"  (len=4)
+0x0021    4 B   int32      Custom format version : 3             3
+0x0025    4 B   int32      Custom format count : 109             117
+0x0029    var   Entry[]    count × (UUID[16 B] + int32[4 B])
+                           2180 B (0.4)           2340 B (0.6)
+   ↓ 0x08AE (0.4) / 0x094E (0.6)
+          var   FString    Save game class name :
+                           "/Script/dmengine.SaveGameSlot"  (len=30)
+
+FString encoding: int32 (byte count with null) + UTF-8 bytes + '\0'
+
+================================================================================
+2. SECONDARY HEADER
+================================================================================
+
+                            Offset 0.4   Offset 0.6   Description
+                            ----------   ----------   -----------------------
+  pad                        0x08D0       0x0970      1 B, always 0x00
+  "None" FString             0x08D1       0x0971      len=5, empty property list
+  flags                      0x08DA       0x097A      int32, always 0
+  secondary custom count     0x08DE       0x097E      int32 = 2 (both versions)
+  secondary custom entries   0x08E2       0x0982      count × (UUID + int32) = 40 B
+                                                      (PlayerDataSaveSlot has
+                                                       12 in 0.4 / 14 in 0.6)
+
+================================================================================
+3. PROPERTY PREAMBLE
+================================================================================
+
+                            Offset 0.4   Offset 0.6   Description
+                            ----------   ----------   -----------------------
+  property_count             0x090A       0x09A6      int32 = 1
+  property name FString      0x090E       0x09AA      "CarSetupsSaveGameData"
+                                                      (len=22)
+  blob start                 0x0928       0x09C8
+
+The property name FString is immediately followed by the blob — no padding.
+
+================================================================================
+4. CarSetupsSaveGameData BLOB
+================================================================================
+
+4.1  BLOB HEADER
+─────────────────────────────────────────────────────────────────────────────
+  Field       Size   Type    Description
+  ----------  -----  ------  ------------------------------------------------
+  size_field   4 B   int32   Bytes from the next byte to EOF.
+                             Invariant: size_field == file_length - (offset + 4)
+                             Any insertion or removal in the blob must update it.
+  unk1         4 B   int32   Constant 1 (purpose unknown)
+  n_cars       4 B   int32   Number of cars with stored setups
+
+Values: 0.4 → size_field 54 048, n_cars 4    0.6 → size_field 140 304, n_cars 7
+
+─────────────────────────────────────────────────────────────────────────────
+4.2  PER-CAR BLOCK  (repeated n_cars times)
+─────────────────────────────────────────────────────────────────────────────
+
+  Field           Size   Type       Description
+  -------------   -----  ---------  -----------------------------------------
+  car_name         var   FString    Car identifier, e.g. "AlpineA110"
+  n_setups          4 B  int32      Number of setup entries that follow
+  separator         4 B  int32      Separator token preceding entry[0]
+  [layout]               ---        Entries are laid out as:
+                                      separator (4 B)   ← the field above
+                                      entry[0]
+                                      separator (4 B)
+                                      entry[1]
+                                      …
+                                      entry[n_setups-1]  ← NO trailing separator
+
+SEPARATOR VALUE: not constant and not meaningful for parsing.  Observed 2 for
+most blocks and 18 between two entries of HyundaiI20NRally2 in the 0.4 file
+(the same block whose header separator field reads 2).  Parsers must skip these
+4 bytes, never validate them.  When inserting an entry, reuse the value from the
+target car block header.
+
+CAR NAME CASE: car_name is an Unreal FName, compared without regard to case
+and re-spelled by the engine on every save.  The same car is written both ways
+across the samples, all from one player and one 0.4.0.86567 build:
+"Hyundaii20NRally2" on 13/05 and 16/05, "HyundaiI20NRally2" on 14/05 and 18/05,
+with the same setups (same names, same timestamps, same sizes) under both
+spellings.  No file written by the game holds two blocks for one car, and inside
+a block every entry's own car_name follows the block's spelling.  Parsers must
+therefore match car_name case-insensitively, and never create a second block for
+a car already present under another case.
+
+NOTE: no "selected_idx" field exists anywhere in this file.
+Confirmed by binary diff between two saves: one with the original setup selected,
+one with a new "WIP" setup created AND selected.  The only changes were:
+  • size_field updated (file grew)
+  • n_setups for SkodaFabiaRSRally2 incremented (2 → 3)
+  • new WIP entry + its preceding separator appended at end of Skoda block
+No per-entry flag, no per-car flag, and no header field changed to reflect
+the selection.
+
+CONCLUSION: the active setup for each car is stored in PlayerDataSaveSlot.sav,
+not here.  CarSetupsDataSaveSlot.sav is a pure setup definition store.
+
+─────────────────────────────────────────────────────────────────────────────
+4.3  PER-SETUP ENTRY  (variable size, no explicit size prefix)
+─────────────────────────────────────────────────────────────────────────────
+
+Entries are NOT prefixed by their own size.  Boundaries are implicit:
+  • Within a car block, each entry is preceded by a separator (4 B)
+    and followed by one if another entry comes after it.
+    The final entry of each car block has NO trailing separator.
+  • The car block ends when n_setups entries (+ n_setups-1 separators) have
+    been consumed.
+  • The last entry of the last car ends at EOF (= blob_start + 4 + size_field).
+
+Locating entries without full parsing: search for the 5-byte marker
+  [FF 01 00 00 00]  (int32 = 511 + byte = 0x00)
+followed immediately by a valid FString (setup name).
+Note: each marker is always preceded by the 4-byte separator of its car block
+(or by the car block header for the first entry).
+
+An entry is self-contained: exporting its raw bytes and re-inserting them into
+another car block (or another save) is a valid operation, provided size_field
+and n_setups / n_cars are updated.
+
+─────────────────────────────────────────────────────────────────────────────
+4.4  ENTRY HEADER FIELDS
+─────────────────────────────────────────────────────────────────────────────
+
+  # Field           Size   Type      Description
+  - ──────────────  ─────  ────────  ─────────────────────────────────────
+  1 entry_marker     4 B   int32     Constant : 511 (0x000001FF).
+                                     Version or format flag; NOT a size.
+  2 marker_pad       1 B   byte      Constant : 0x00
+  3 setup_name       var   FString   User-defined setup name, e.g. "TAR1"
+  4 author           var   FString   Author of the setup, e.g. "SomePlayer".
+                                     EMPTY (int32 0, no bytes) in entries written
+                                     by game 0.4; populated from game 0.5 onward.
+                                     See §6.
+  5 timestamp_lo     4 B   uint32    Low 32 bits of the creation / last-modified
+  6 timestamp_hi     4 B   uint32    time, as .NET DateTime ticks, on the
+                                     player's own clock — NOT UTC, unlike the
+                                     other timestamps met in these saves
+                                     (measured: an entry of a sample is stamped
+                                     16 min before its file was written, which
+                                     UTC ticks would put 1 h 44 after it)
+  7 game_version     var   FString   Game build that wrote the entry,
+                                     e.g. "0.4.0.85654", "0.6.0.100866"
+  8 car_name         var   FString   Car identifier (same as car block name)
+  9 track_name       var   FString   Stage/special identifier,
+                                     e.g. "Saverne", "MonteCarloS2Sisteron"
+  [conditions block] var   ---       See §4.5
+
+WARNING (field 4): because an empty FString is exactly 4 zero bytes, a 0.4 entry
+looks identical to an entry with an absent author.  Reading those 4 bytes as a
+padding int32 — as parsers written against 0.4 files did — shifts every later
+field by 4 bytes as soon as an entry carries a real author, and the timestamp
+decodes to a nonsensical value.  Always read the field as an FString.
+
+─────────────────────────────────────────────────────────────────────────────
+4.5  CONDITIONS BLOCK  (immediately after track_name)
+─────────────────────────────────────────────────────────────────────────────
+
+The conditions block holds three lists of strings, in this order, each an
+int32 count followed by that many FStrings:
+
+  n_surfaces   4 B  int32
+  surfaces[]   var  FString   e.g. "Tarmac", "Gravel", "Snow"
+  n_weathers   4 B  int32
+  weathers[]   var  FString   e.g. "Clear", "LightClouds", "HeavyRain"
+  n_tags       4 B  int32
+  tags[]       var  FString   game mode, e.g. "SingleStage_Tag", "RallyWeekend_Tag"
+  → directly followed by kv_count (§4.6)
+
+The counts are 0 or 1 in most entries, so the block often reads as flag +
+optional string pairs: 12 bytes of zeros when nothing is stored, or
+1, "Tarmac", 0, 0.  Earlier versions of this document read it that way and
+took the tag count for an "unk_end" zero followed by unknown padding.  A
+setup kept for several conditions lists them all: 5 weathers and 2 tags have
+been measured on one entry, 1 to 3 on others.  Read every count and every
+string; nothing in the block has a fixed size.
+
+Measured: walked this way, every entry of every sample save and .setup file
+ends exactly where the next one starts, and the last one exactly at the end
+of the file — without scanning for kv_count.
+
+IMPORTANT — surface not stored for every setup:
+Binary inspection shows n_surfaces=0 on many setups even when the player picked
+a surface in-game (e.g. Skoda on Monte Carlo, Hyundai on Wales gravel stages).
+When n_surfaces=0 the surface is not present anywhere in this file — it is
+either derived from the stage/track name at runtime or stored in
+PlayerDataSaveSlot.sav.  This is unchanged in 0.6.
+
+─────────────────────────────────────────────────────────────────────────────
+4.6  KEY-VALUE PAIRS  (setup parameters)
+─────────────────────────────────────────────────────────────────────────────
+
+  kv_count   4 B  int32      Number of parameter pairs that follow
+                             (56–77 across the analysed files)
+  kv_pairs[]       KVPair[]  kv_count consecutive pairs
+
+  KVPair:
+    key    var  FString   Dot-path parameter name
+                          e.g. "Differentials.Rear.DifferentialRatio"
+    value  var  FString   String-encoded value
+                          e.g. "(Gears:27//8)", "0.150000", "Tarmac"
+
+  kv_count is per-car, not global: 56 for AlpineA110 and Fiat124Abarth,
+  62 for Peugeot306IIMaxiKitCar, 65 for SkodaFabiaRSRally2 / HyundaiI20NRally2,
+  71 for CitroenXsaraWRC, 76–77 for SubaruImprezaS3.
+
+  Example pairs observed:
+    "Differentials.Rear.DifferentialRatio"   → "(Gears:27//8)"
+    "Differentials.Rear.LSDRamps"            → "(LSDRampAngles:45_45)"
+    "Differentials.Rear.LSDPreload"          → "20.000000"
+    "Gearbox.GearboxMain.GearsSet"           → "(GearsSets:AlpineA1101800Set1)"
+    "Brakes.FrontLeft.Disc"                  → "(Discs:Brembo_08.2284.10_...)"
+    "Brakes.FrontLeft.Caliper"               → "(Calipers:Brembo_F.68.016-7_...)"
+    "Brakes.FrontLeft.PadCompound"           → "(Pads:Type19_Medium)"
+    "Wheels.FrontLeft.TyrePressure"          → "36.000000"
+    "Wheels.FrontLeft.Camber"                → "-3.500000"
+    "Wheels.FrontLeft.Toe"                   → "-0.000200"
+    "Springs.FrontLeft.SpringRate"           → "28000.000000"
+    "Dampers.RearRight.FastBump"             → "4875.000000"
+    "Other.Lights.ABSetting"                 → (value varies)
+    "Brakes.BrakesMain.FrontBias"            → "0.530000"
+
+================================================================================
+5. SAMPLE DATA  (CarSetupsDataSaveSlot-0.6.sav — 142 812 B, 7 cars, 38 setups)
+================================================================================
+
+  Setup names and the author's name belong to the players who wrote them and are
+  left out.  What a parser has to cope with is the mix below: one file holds
+  entries written by several game builds, with and without an author.
+
+  Car                     n  sep  Entries (game build, author field)
+  ──────────────────────  ─  ───  ────────────────────────────────────────────
+  AlpineA110              1   2   0.4.0.85654, author empty
+  Peugeot306IIMaxiKitCar  3   2   3 × 0.4.0.85654, author empty
+  SkodaFabiaRSRally2     14   2   13 × 0.4.0.86567, author empty
+                                   1 × 0.6.0.100866, author set
+  HyundaiI20NRally2      14   2   13 × 0.4.0.86567, author empty
+                                   1 × 0.5.0.92585, author set
+  SubaruImprezaS3         4   2    3 × 0.4.0.86567, author empty
+                                   1 × 0.5.0.94235, author set
+  Fiat124Abarth           1   2   0.4.0.86567, author empty
+  CitroenXsaraWRC         1   2   0.5.0.94235, author set
+
+  Key offsets (this file only — will shift in other files):
+    0x09C8  blob start (size_field 140 304, unk1 1, n_cars 7)
+    0x09D4  AlpineA110 car block
+    0x09EB  first entry marker (the AlpineA110 setup)
+    0x5C84  first entry with a non-empty author (SkodaFabiaRSRally2,
+            0.6.0.100866)
+    0x22DDC EOF
+
+================================================================================
+6. VERSION DIFFERENCES 0.4 → 0.6
+================================================================================
+
+  1. Engine: UE 5.4.3 → 5.6.1; UE5 package version 1012 → 1017;
+     GVAS custom-version table 109 → 117 entries (+160 B).
+     Everything after the header shifts by 160 bytes.
+
+  2. Per-entry author FString (§4.4 field 4).  The field itself exists in 0.4
+     files too, but always empty, which is why a parser that treated it as a
+     4-byte zero padding worked until entries written by 0.5+ appeared.
+     Entries observed with a populated author carry game_version 0.5.0.92585,
+     0.5.0.94235 and 0.6.0.100866.
+
+  3. No other structural change.  Blob header, car blocks, entry markers,
+     conditions block and key-value pairs are byte-compatible; a .setup blob
+     exported from a 0.4 save imports unchanged into a 0.6 save (its author
+     field is simply empty).
+
+  Verified by round-trip test: extract → rename → insert → remove restores the
+  0.6 file byte-for-byte, with size_field / n_setups / n_cars consistent.
+
+================================================================================
+END OF DOCUMENT
+================================================================================
+Updated : 2026-09-24  (game 0.6 / UE 5.6.1 analysis)
+Source  : hex analysis of CarSetupsDataSaveSlot.sav (0.4) and
+          CarSetupsDataSaveSlot-0.6.sav (0.6), cross-checked against
+          Services/CarSetupsParser.cs
+================================================================================

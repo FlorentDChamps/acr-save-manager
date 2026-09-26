@@ -1,0 +1,52 @@
+<UserControl x:Class="ACRSaveManager.UI.RaceTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Styles and brushes live in MainWindow.Resources, which is only reachable once
+       this control is in the tree: DynamicResource, not StaticResource. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel>
+
+      <!-- 1. Player save selection -->
+      <GroupBox Header="Player data save file (.sav)">
+        <StackPanel>
+          <DockPanel>
+            <TextBlock x:Name="TxtSaveVersion" DockPanel.Dock="Right"
+                       Style="{DynamicResource VersionBadge}"
+                       ToolTip="Engine build of this save — the game version is not stored in it"/>
+            <TextBox x:Name="TxtSavePath" Style="{DynamicResource PathBox}"/>
+          </DockPanel>
+          <StackPanel Orientation="Horizontal">
+            <Button Content="Select…" Style="{DynamicResource RowButton}" Click="BtnBrowseSave_Click"/>
+            <Button Content="Open folder" Style="{DynamicResource RowButton}" Click="BtnOpenSaveDir_Click"/>
+            <Button Content="Restore" Style="{DynamicResource RowButton}" Click="BtnRestoreBackup_Click"/>
+            <Button Content="Backup" Style="{DynamicResource RowButton}" Click="BtnBackup_Click"/>
+            <Button Content="Export JSON" Click="BtnExportPlayerJson_Click"/>
+          </StackPanel>
+        </StackPanel>
+      </GroupBox>
+
+      <!-- 2. Import / Export of the race configurations: every event config and the selection past them -->
+      <GroupBox Header="Import / Export" Margin="0">
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+            <Button Content="Read &amp; extract" Style="{DynamicResource RowButton}" Click="BtnRead_Click"/>
+            <Button Content="Write to .sav" Style="{DynamicResource WriteButton}" Margin="0" Click="BtnWrite_Click"/>
+          </StackPanel>
+          <DockPanel>
+            <TextBlock x:Name="TxtRaceVersion" DockPanel.Dock="Right"
+                       Style="{DynamicResource VersionBadge}"
+                       ToolTip="Engine build of the save this file was exported from"/>
+            <TextBox x:Name="TxtRacePath" Style="{DynamicResource PathBox}"/>
+          </DockPanel>
+          <StackPanel Orientation="Horizontal">
+            <Button Content="Select…" Style="{DynamicResource RowButton}" Click="BtnBrowseRace_Click"/>
+            <Button Content="Open folder" Click="BtnOpenRaceDir_Click"/>
+          </StackPanel>
+          <!-- the parts of the picked .race file, each written only when ticked -->
+          <WrapPanel x:Name="PartsPanel" Visibility="Collapsed" Margin="0,10,0,0"/>
+        </StackPanel>
+      </GroupBox>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
