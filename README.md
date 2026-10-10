@@ -40,9 +40,14 @@ timestamped backups and one-click restore.
   companion, named
   `{Car}_{Track}[_{Weather}]_{Name}[_{Author}]_{Timestamp}.setup` by default — that pair
   is what you send to another player. The weather is in the name only when the
-  setup is kept for a single one.
-- **Import** a `.setup` file into the current save, with a warning when it comes from
-  another game release. The setup name is always asked for (pre-filled with the
+  setup is kept for a single one. The `.json` is written in the format of
+  [*AC Rally car setup manager*](https://www.overtake.gg/downloads/ac-rally-car-setup-manager-by-sheldor.85944/)
+  by Sheldor — the parameters in readable form, and the entry itself — followed
+  by the setup's weathers, game mode tags and date.
+- **Import** a `.setup` file into the current save, or a `.json` in that format,
+  whichever of the two tools wrote it, with a warning when it comes from
+  another game release. A `.json` holding several setups adds them all in one
+  go. The setup name is always asked for (pre-filled with the
   original, auto-incremented on collision), so an imported setup never silently
   replaces one of yours.
 - **Rename** and **Remove** the selected setup, in place, inside the save file.
@@ -105,7 +110,7 @@ of producing a file the game would reject.
 |---------------|---------|
 | `.sav`        | Unreal Engine 5 GVAS binary save file (the game's own) |
 | `.setup`      | Raw binary blob of one setup entry from `CarSetupsDataSaveSlot.sav` |
-| `.json`       | Human-readable JSON companion exported next to a `.setup`, same base name |
+| `.json`       | JSON companion exported next to a `.setup`, same base name, in the format of [*AC Rally car setup manager*](https://www.overtake.gg/downloads/ac-rally-car-setup-manager-by-sheldor.85944/) by Sheldor: the parameters in readable form, their hash, and the entry in base64. It can be imported like a `.setup` |
 | `.race`       | Every event config of `PlayerDataSaveSlot.sav` and the stage, car and weather selection past them, behind a 16-byte provenance header |
 | `.bak`        | Timestamped backup copy of a `.sav` file |
 
@@ -179,7 +184,7 @@ progress: never commit them.
    window layout and the last files opened are saved to an `ACRSaveManager.config`
    next to it, and extracted `.race` files go to that folder by default.
 3. *Setup* tab: pick a setup, **Export selected setup** to share it, or
-   **Select a .setup** → **Import to sav** to add one you received.
+   **Select a setup file** → **Import to sav** to add one you received.
 4. *Race* tab: **Read & extract** to save the race configurations of every mode,
    stage, car and weather included; **Select…** a `.race` file, tick the parts to
    take, then **Write to .sav**.
@@ -224,6 +229,7 @@ If you would rather not trust a prebuilt binary at all, clone the repo and run
 | Backups | ✅ timestamped `.bak` + restore; automatic on Rename, Remove and Write, optional on Import and Restore |
 | Writing while the game runs | ❌ not supported — the file is locked, and ACR rewrites it on exit |
 | Cross-version setups | 🟡 the build that wrote each entry is shown and compared at import; a mismatch warns, it does not block |
+| Setup JSON of *AC Rally car setup manager* | 🟡 written and read; a file edited by hand is refused, and the friendly car name may differ from that tool's for a car missing from its list |
 
 Built against **Assetto Corsa Rally 0.6** (Unreal Engine 5.6.1). These are
 undocumented binary formats read by signature and offset: a game update can change
@@ -235,8 +241,8 @@ them at any time and break parsing. Keep the `.bak` files.
 src/
   Services/  save file parsing and mutation: GVAS/EventConfig walker, the
              event list and its stage selection, .race file container,
-             CarSetups setup table (list, export, import, rename, remove),
-             whole-save JSON exporter
+             CarSetups setup table (list, export, import, rename, remove) and
+             its setup-sharing JSON, whole-save JSON exporter
   UI/        WPF window — SetupTab and RaceTab controls, file pickers, dialogs,
              backups, atomic save writes, UI settings file
   App        entry point and last-chance error handler

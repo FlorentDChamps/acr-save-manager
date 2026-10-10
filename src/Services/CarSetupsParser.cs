@@ -26,18 +26,18 @@ public record SetupEntry(
         Timestamp == DateTime.MinValue ? null : Timestamp;
 }
 
-/// <summary>Full decoded content of a setup entry (for JSON export).</summary>
+/// <summary>Full decoded content of a setup entry.</summary>
 public class SetupExportData
 {
     public string Car { get; init; } = "";
     public string Name { get; init; } = "";
     public string Author { get; init; } = "";
     public string Track { get; init; } = "";
-    // A setup can be kept for several surfaces, weathers and game modes: each
-    // list is written comma-separated, so a setup with one value reads as before.
-    public string Surface { get; init; } = "";
-    public string Weather { get; init; } = "";
-    public string Tags { get; init; } = "";
+    // A setup can be kept for several surfaces, weathers and game modes — or
+    // for none in particular, which is an empty list.
+    public IReadOnlyList<string> Surfaces { get; init; } = [];
+    public IReadOnlyList<string> Weathers { get; init; } = [];
+    public IReadOnlyList<string> Tags { get; init; } = [];
     public string GameVersion { get; init; } = "";
     public DateTime Timestamp { get; init; }
     public Dictionary<string, string> Parameters { get; init; } = [];
@@ -82,9 +82,7 @@ public static class CarSetupsParser
     {
         string ts = data.Timestamp.ToString("yyyyMMdd_HHmmss");   // already local
         string track = string.IsNullOrEmpty(data.Track) ? "NoTrack" : data.Track;
-        string weather = data.Weather.Length == 0 || data.Weather.Contains(',')
-            ? ""
-            : $"_{data.Weather}";
+        string weather = data.Weathers.Count == 1 ? $"_{data.Weathers[0]}" : "";
         string author = string.IsNullOrEmpty(data.Author) ? "" : $"_{data.Author}";
         string name = $"{data.Car}_{track}{weather}_{data.Name}{author}_{ts}.setup";
         char[] invalid = Path.GetInvalidFileNameChars();
@@ -175,6 +173,18 @@ public static class CarSetupsParser
     }
 
     /// <summary>
+    /// The int32 the save keeps in front of <paramref name="entry"/> (§4.2): the
+    /// car block's separator field for its first entry, the separator between
+    /// two entries for the others.  A .setup file leaves it out; the JSON
+    /// companion carries it along with the entry.
+    /// </summary>
+    public static int ReadEntryPrefix(byte[] data, SetupEntry entry)
+    {
+        CheckEntryAt(data, entry);
+        return ReadInt32(data, entry.EntryStart - 4);
+    }
+
+    /// <summary>
     /// Check that <paramref name="entry"/> is one whole setup entry — what an
     /// exported .setup file holds — before any field is read from it: the entry
     /// marker opens it, and the walk of its fields ends exactly on its last byte.
@@ -251,8 +261,7 @@ public static class CarSetupsParser
     }
 
     /// <summary>
-    /// Decode all fields of a raw entry blob into a <see cref="SetupExportData"/>
-    /// suitable for JSON serialisation.
+    /// Decode all fields of a raw entry blob into a <see cref="SetupExportData"/>.
     /// </summary>
     public static SetupExportData ReadEntryData(byte[] entry)
     {
@@ -265,9 +274,9 @@ public static class CarSetupsParser
             Name = f.SetupName,
             Author = f.Author,
             Track = f.Track,
-            Surface = string.Join(", ", f.Surfaces),
-            Weather = string.Join(", ", f.Weathers),
-            Tags = string.Join(", ", f.Tags),
+            Surfaces = f.Surfaces,
+            Weathers = f.Weathers,
+            Tags = f.Tags,
             GameVersion = f.GameVersion,
             Timestamp = f.Timestamp,
             Parameters = parameters,
@@ -376,8 +385,12 @@ public static class CarSetupsParser
     /// Append <paramref name="entryBytes"/> to the matching car block
     /// (or create a new car block if the car is not yet present).
     /// Returns the modified file bytes.
+    ///
+    /// <paramref name="prefix"/> is the int32 that goes in front of the entry
+    /// (§4.2).  A .setup file does not hold it, so without one the entry takes
+    /// the value its car block opens with, or 2 in a block of its own.
     /// </summary>
-    public static byte[] InsertEntry(byte[] data, byte[] entryBytes)
+    public static byte[] InsertEntry(byte[] data, byte[] entryBytes, int? prefix = null)
     {
         ValidateEntry(entryBytes);
 
@@ -427,7 +440,7 @@ public static class CarSetupsParser
         {
             // Append to existing car block.
             // Must prepend the inter-entry separator before the new entry.
-            byte[] separator = BitConverter.GetBytes(unkFieldValue);
+            byte[] separator = BitConverter.GetBytes(prefix ?? unkFieldValue);
             byte[] toInsert = Concat(separator, entryBytes);
             byte[] result = Splice(data, carBlockEnd, 0, toInsert);
 
@@ -442,7 +455,7 @@ public static class CarSetupsParser
             // unk_field precedes the sole entry directly (no extra separator needed).
             byte[] carNameFStr = EncodeFString(carName);
             byte[] nSetupsBuf = BitConverter.GetBytes(1);
-            byte[] unkField = BitConverter.GetBytes(2);
+            byte[] unkField = BitConverter.GetBytes(prefix ?? 2);
             byte[] newCarBlock = Concat(carNameFStr, nSetupsBuf, unkField, entryBytes);
 
             byte[] result = Splice(data, allCarsEnd, 0, newCarBlock);

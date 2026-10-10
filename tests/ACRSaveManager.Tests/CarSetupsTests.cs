@@ -54,9 +54,9 @@ public class CarSetupsTests
         CarSetupsParser.VerifyIntegrity(data, 3);
 
         var alpha = CarSetupsParser.ReadEntryData(CarSetupsParser.ExtractEntry(data, list[0]));
-        Assert.Equal("Tarmac", alpha.Surface);
-        Assert.Equal("Clear, LightRain, HeavyRain", alpha.Weather);
-        Assert.Equal("TestMode_Tag, OtherMode_Tag", alpha.Tags);
+        Assert.Equal(["Tarmac"], alpha.Surfaces);
+        Assert.Equal(["Clear", "LightRain", "HeavyRain"], alpha.Weathers);
+        Assert.Equal(["TestMode_Tag", "OtherMode_Tag"], alpha.Tags);
         Assert.Equal(20, alpha.Parameters.Count);
     }
 
@@ -78,10 +78,6 @@ public class CarSetupsTests
         var data = CarSetupsParser.ReadEntryData(CarSetupsParser.ExtractEntry(
             SaveBuilder.CarSetups(new Setup("Alpha", "TestCarA", Ticks: Noon)), e));
         Assert.Contains("20260304_120000", CarSetupsParser.BuildExportFileName(data));
-
-        // the JSON companion travels to other time zones: it claims none
-        string json = System.Text.Json.JsonSerializer.Serialize(data);
-        Assert.Contains("\"Timestamp\":\"2026-03-04T12:00:00\"", json);
     }
 
     [Fact]
@@ -319,8 +315,8 @@ public class CarSetupsTests
     [Fact]
     public void The_export_name_names_the_weather_only_when_the_setup_has_one()
     {
-        var one = new SetupExportData { Car = "C", Name = "N", Track = "T", Weather = "Clear" };
-        var several = new SetupExportData { Car = "C", Name = "N", Track = "T", Weather = "Clear, LightRain" };
+        var one = new SetupExportData { Car = "C", Name = "N", Track = "T", Weathers = ["Clear"] };
+        var several = new SetupExportData { Car = "C", Name = "N", Track = "T", Weathers = ["Clear", "LightRain"] };
 
         Assert.StartsWith("C_T_Clear_N_", CarSetupsParser.BuildExportFileName(one));
         Assert.StartsWith("C_T_N_", CarSetupsParser.BuildExportFileName(several));

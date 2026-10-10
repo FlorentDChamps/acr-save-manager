@@ -23,7 +23,8 @@
               <TextBox x:Name="TxtSetupFile" Style="{DynamicResource PathBox}"/>
             </DockPanel>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-              <Button Content="Select a .setup" Style="{DynamicResource RowButton}"
+              <Button Content="Select a setup file" Style="{DynamicResource RowButton}"
+                      ToolTip="A .setup file, or the .json exported next to one."
                       Click="BtnSelectImport_Click"/>
               <Button Content="Import to sav" Style="{DynamicResource WriteButton}"
                       Click="BtnImportSetup_Click"/>

@@ -43,9 +43,14 @@ réécrit les parties choisies, et exporte toute la sauvegarde joueur en JSON li
   `.json` lisible, nommé par défaut
   `{Voiture}_{Spéciale}[_{Météo}]_{Nom}[_{Auteur}]_{Horodatage}.setup` — c'est
   cette paire que vous envoyez à un autre joueur. La météo n'apparaît dans le nom
-  que si le setup n'en retient qu'une.
-- **Import** d'un fichier `.setup` dans la sauvegarde courante, avec un avertissement
-  s'il vient d'une autre version du jeu. Le nom du setup est toujours demandé
+  que si le setup n'en retient qu'une. Le `.json` suit le format de
+  [*AC Rally car setup manager*](https://www.overtake.gg/downloads/ac-rally-car-setup-manager-by-sheldor.85944/)
+  de Sheldor — les paramètres sous forme lisible, et l'entrée elle-même — suivi
+  des météos, des tags de mode de jeu et de la date du setup.
+- **Import** d'un fichier `.setup` dans la sauvegarde courante, ou d'un `.json` à
+  ce format, qu'il vienne de l'un ou l'autre outil, avec un avertissement
+  s'il vient d'une autre version du jeu. Un `.json` contenant plusieurs setups
+  les ajoute tous en une fois. Le nom du setup est toujours demandé
   (pré-rempli avec l'original, incrémenté automatiquement en cas de collision) : un
   setup importé ne remplace jamais un des vôtres en silence.
 - **Rename** et **Remove** du setup sélectionné, sur place, dans le fichier.
@@ -112,7 +117,7 @@ l'opération au lieu de produire un fichier que le jeu refuserait.
 |---------------|---------|
 | `.sav`        | Fichier de sauvegarde binaire Unreal Engine 5 (format GVAS), celui du jeu |
 | `.setup`      | Blob binaire brut d'une entrée setup de `CarSetupsDataSaveSlot.sav` |
-| `.json`       | JSON lisible exporté à côté du `.setup`, même nom de base |
+| `.json`       | JSON exporté à côté du `.setup`, même nom de base, au format de [*AC Rally car setup manager*](https://www.overtake.gg/downloads/ac-rally-car-setup-manager-by-sheldor.85944/) de Sheldor : les paramètres sous forme lisible, leur hash, et l'entrée en base64. Il s'importe comme un `.setup` |
 | `.race`       | Toutes les event configs de `PlayerDataSaveSlot.sav` et la sélection spéciale, voiture et météo qui les suit, précédées d'un en-tête de provenance de 16 octets |
 | `.bak`        | Copie de sauvegarde horodatée d'un fichier `.sav` |
 
@@ -190,7 +195,7 @@ ne la commitez jamais.
    derniers fichiers ouverts sont enregistrés dans un `ACRSaveManager.config` à
    côté de lui, et c'est là que vont par défaut les fichiers `.race` extraits.
 3. Onglet *Setup* : sélectionnez un setup et **Export selected setup** pour le
-   partager, ou **Select a .setup** → **Import to sav** pour en ajouter un reçu.
+   partager, ou **Select a setup file** → **Import to sav** pour en ajouter un reçu.
 4. Onglet *Race* : **Read & extract** pour sauver les configurations de course
    de tous les modes, spéciale, voiture et météo comprises ; **Select…** un fichier
    `.race`, cochez les parties à prendre, puis **Write to .sav**.
@@ -237,6 +242,7 @@ lancez `publish.bat` — l'exe obtenu est l'exe que vous exécutez.
 | Backups | ✅ `.bak` horodaté + restauration ; automatique sur Rename, Remove et Write, optionnel sur Import et Restore |
 | Écriture jeu ouvert | ❌ non supportée — le fichier est verrouillé, et ACR le réécrit en quittant |
 | Setups entre versions | 🟡 la version qui a écrit chaque entrée est affichée et comparée à l'import ; un écart avertit, il ne bloque pas |
+| JSON setup de *AC Rally car setup manager* | 🟡 écrit et lu ; un fichier édité à la main est refusé, et le nom lisible de la voiture peut différer de celui de l'outil pour une voiture absente de sa liste |
 
 Développé contre **Assetto Corsa Rally 0.6** (Unreal Engine 5.6.1). Ce sont des
 formats binaires non documentés, lus par signature et par offset : une mise à jour du
@@ -249,7 +255,8 @@ src/
   Services/  parsing et modification des sauvegardes : parcours GVAS/EventConfig,
              liste d'événements et sa sélection de spéciale, conteneur des
              fichiers .race, table des setups CarSetups (liste, export, import,
-             rename, remove), export JSON de la sauvegarde complète
+             rename, remove) et son JSON de partage, export JSON de la sauvegarde
+             complète
   UI/        fenêtre WPF — contrôles SetupTab et RaceTab, sélecteurs de fichiers,
              dialogues, backups, écriture atomique, fichier de réglages de l'interface
   App        point d'entrée et gestionnaire d'erreur de dernier recours

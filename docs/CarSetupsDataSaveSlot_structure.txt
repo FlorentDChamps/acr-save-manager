@@ -126,11 +126,34 @@ Values: 0.4 → size_field 54 048, n_cars 4    0.6 → size_field 140 304, n_car
                                       …
                                       entry[n_setups-1]  ← NO trailing separator
 
-SEPARATOR VALUE: not constant and not meaningful for parsing.  Observed 2 for
-most blocks and 18 between two entries of HyundaiI20NRally2 in the 0.4 file
-(the same block whose header separator field reads 2).  Parsers must skip these
-4 bytes, never validate them.  When inserting an entry, reuse the value from the
-target car block header.
+SEPARATOR VALUE: not constant and not needed for parsing.  Parsers must skip
+these 4 bytes, never validate them.
+
+Every entry has one in front of it — the block header's for entry[0], an
+inter-entry one for the others — so it reads better as the first field of the
+entry than as something between entries.  Values seen: 2, and 18 (2 + 16).
+Across 4 saves, 101 entries, 0.4 to 0.6:
+
+  • 98 entries read 2, 3 read 18, never more than one per file, and one file
+    has none.
+  • Each 18 sits in front of the LAST entry of its car block, in a block that
+    also holds entries reading 2: an entry appended by "save as new".
+  • A setup saved again over itself keeps its place in the block and takes a
+    new timestamp (blocks are not in date order).  One block holds an entry
+    reading 18 and two others saved again minutes after it, both reading 2.
+  • Older appended entries all read 2, so the 16 does not stay.
+
+So bit 16 looks like a passing state of a setup created in the last game
+session that wrote the file — not a setting, and not a property of the car or
+the stage.  What the game does with it is unknown; no controlled test was
+made.  The setup JSON of "AC Rally car setup manager" (see the README) carries
+these 4 bytes with the entry, 2 or 18 as it found them.  Seven such files from
+one player, exported in 2026-10, agree: the three exported before the next
+game session carry 18, the four exported after one carry 2.
+
+When inserting an entry that comes with its own value (that JSON), keep it.  A
+.setup file does not hold one: reuse the value from the target car block
+header, or 2 in a new block.
 
 CAR NAME CASE: car_name is an Unreal FName, compared without regard to case
 and re-spelled by the engine on every save.  The same car is written both ways
@@ -332,7 +355,7 @@ PlayerDataSaveSlot.sav.  This is unchanged in 0.6.
 ================================================================================
 END OF DOCUMENT
 ================================================================================
-Updated : 2026-09-24  (game 0.6 / UE 5.6.1 analysis)
+Updated : 2026-10-10  (game 0.6 / UE 5.6.1 analysis)
 Source  : hex analysis of CarSetupsDataSaveSlot.sav (0.4) and
           CarSetupsDataSaveSlot-0.6.sav (0.6), cross-checked against
           Services/CarSetupsParser.cs

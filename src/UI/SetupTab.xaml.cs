@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -21,12 +20,8 @@ namespace ACRSaveManager.UI;
 public partial class SetupTab : UserControl
 {
     private string _setupPath = string.Empty;   // the car setups save
-    private string _importPath = string.Empty;   // the .setup file waiting to be imported
+    private string _importPath = string.Empty;   // the .setup or .json file waiting to be imported
     private readonly ObservableCollection<SetupEntry> _setups = [];
-
-    // One instance: System.Text.Json caches its reflection behind it, and a fresh
-    // one on every export throws that away (CA1869).
-    private static readonly JsonSerializerOptions IndentedJson = new() { WriteIndented = true };
 
     public SetupTab()
     {
@@ -142,6 +137,7 @@ public partial class SetupTab : UserControl
             if (data is null) return;
 
             byte[] bytes = CarSetupsParser.ExtractEntry(data, entry);
+            int prefix = CarSetupsParser.ReadEntryPrefix(data, entry);
             var exportData = CarSetupsParser.ReadEntryData(bytes);
 
             string defaultName = CarSetupsParser.BuildExportFileName(exportData);
@@ -159,7 +155,8 @@ public partial class SetupTab : UserControl
 
             // JSON companion file (same base name, .json extension)
             string jsonPath = Path.ChangeExtension(dlg.FileName, ".json");
-            string json = JsonSerializer.Serialize(exportData, IndentedJson);
+            string json = SetupShareJson.Serialize(
+                SetupShareJson.Build(prefix, bytes, DateTimeOffset.Now));
             File.WriteAllText(jsonPath, json, Encoding.UTF8);
 
             TxtSetupFile.Text = dlg.FileName;
@@ -174,8 +171,8 @@ public partial class SetupTab : UserControl
     {
         var dlg = new OpenFileDialog
         {
-            Title = "Select a .setup file",
-            Filter = "Setup files (*.setup)|*.setup|All files (*.*)|*.*",
+            Title = "Select a .setup or .json file",
+            Filter = "Setup files (*.setup;*.json)|*.setup;*.json|All files (*.*)|*.*",
         };
         if (dlg.ShowDialog() != true) return;
 
@@ -191,7 +188,7 @@ public partial class SetupTab : UserControl
 
         if (string.IsNullOrEmpty(_importPath) || !File.Exists(_importPath))
         {
-            Dialogs.Warn("Select a .setup file first.", "File required");
+            Dialogs.Warn("Select a .setup or .json file first.", "File required");
             return;
         }
 
@@ -206,26 +203,24 @@ public partial class SetupTab : UserControl
 
         try
         {
-            byte[] entryBytes = File.ReadAllBytes(_importPath);
-            CarSetupsParser.ValidateEntry(entryBytes);   // before any field is read from it
+            // Every setup of the file is checked as a whole entry before any
+            // field is read from it.
+            var incoming = ReadImportFile(_importPath);
 
-            string carName = CarSetupsParser.ReadEntryCarName(entryBytes);
-            string setupName = CarSetupsParser.ReadEntrySetupName(entryBytes);
-
-            // The entry keeps its own spelling of the car id, but it joins the
-            // block already in the save — so that is the name to show.
-            string carShown = _setups.FirstOrDefault(s => SameCar(s.CarName, carName))?.CarName
-                              ?? carName;
-
-            // Same warning as for a .race file, from the build stamped in the
-            // entry itself. Only the release is compared: two builds of the same
+            // Same warning as for a .race file, from the build stamped in each
+            // entry. Only the release is compared: two builds of the same
             // release differ by a number that says nothing about the layout.
-            string fromBuild = CarSetupsParser.ReadEntryGameVersion(entryBytes);
             string toBuild = NewestGameVersion(_setups);
-            if (fromBuild.Length > 0 && toBuild.Length > 0 &&
-                Release(fromBuild) != Release(toBuild) &&
+            var otherBuilds = incoming
+                .Select(s => CarSetupsParser.ReadEntryGameVersion(s.Entry))
+                .Where(b => b.Length > 0 && toBuild.Length > 0 && Release(b) != Release(toBuild))
+                .Distinct()
+                .ToList();
+            if (otherBuilds.Count > 0 &&
                 !Dialogs.Confirm(
-                    $"This setup was written by game build {fromBuild}, while the newest " +
+                    (incoming.Count == 1 ? "This setup was" : "Setups of this file were") +
+                    (otherBuilds.Count == 1 ? " written by game build " : " written by game builds ") +
+                    $"{string.Join(", ", otherBuilds)}, while the newest " +
                     $"entry in the save comes from {toBuild}.\n\n" +
                     "Setup entries have stayed compatible across releases so far.\n\nImport anyway?",
                     "Game build mismatch"))
@@ -233,42 +228,63 @@ public partial class SetupTab : UserControl
                 return;
             }
 
-            // Always prompt for name; suggest unique candidate if collision
-            string defaultName = setupName;
-            if (_setups.Any(s => SameCar(s.CarName, carName) && s.SetupName == defaultName))
+            // A name is asked for each setup before anything is written: giving
+            // up on one of them gives up on the whole file.
+            var named = new List<(string Car, string Name, SharedSetup Setup)>();
+            for (int i = 0; i < incoming.Count; i++)
             {
-                int idx = 2;
-                while (_setups.Any(s => SameCar(s.CarName, carName) && s.SetupName == defaultName))
-                    defaultName = $"{setupName}_{idx++}";
+                var (prefix, entryBytes) = incoming[i];
+                string carName = CarSetupsParser.ReadEntryCarName(entryBytes);
+                string setupName = CarSetupsParser.ReadEntrySetupName(entryBytes);
+
+                // The entry keeps its own spelling of the car id, but it joins the
+                // block already in the save — so that is the name to show.
+                string carShown = _setups.FirstOrDefault(s => SameCar(s.CarName, carName))?.CarName
+                                  ?? carName;
+
+                // Taken in the save, or by a setup of the same file named before it.
+                bool Taken(string name) =>
+                    _setups.Any(s => SameCar(s.CarName, carName) && s.SetupName == name) ||
+                    named.Any(n => SameCar(n.Car, carName) && n.Name == name);
+
+                // Always prompt for name; suggest unique candidate if collision
+                string defaultName = setupName;
+                for (int idx = 2; Taken(defaultName); idx++)
+                    defaultName = $"{setupName}_{idx}";
+
+                string which = incoming.Count == 1 ? "" : $"Setup {i + 1} of {incoming.Count} — ";
+                string? chosenName = ShowInputDialog(
+                    $"{which}Setup name for import (car: {carShown}):",
+                    "Import — set name",
+                    defaultName);
+
+                if (string.IsNullOrWhiteSpace(chosenName)) return;
+                chosenName = chosenName.Trim();
+
+                if (Taken(chosenName))
+                {
+                    Dialogs.Warn($"Setup \"{chosenName}\" already exists for {carShown}. Choose another name.", "Name conflict");
+                    return;
+                }
+
+                if (chosenName != setupName)
+                    entryBytes = CarSetupsParser.RenameEntry(entryBytes, chosenName);
+
+                named.Add((carShown, chosenName, new SharedSetup(prefix, entryBytes)));
             }
-
-            string? chosenName = ShowInputDialog(
-                $"Setup name for import (car: {carShown}):",
-                "Import — set name",
-                defaultName);
-
-            if (string.IsNullOrWhiteSpace(chosenName)) return;
-            chosenName = chosenName.Trim();
-
-            if (_setups.Any(s => SameCar(s.CarName, carName) && s.SetupName == chosenName))
-            {
-                Dialogs.Warn($"Setup \"{chosenName}\" already exists for {carShown}. Choose another name.", "Name conflict");
-                return;
-            }
-
-            if (chosenName != setupName)
-                entryBytes = CarSetupsParser.RenameEntry(entryBytes, chosenName);
 
             // Read only now, after the last dialog: the game may have saved while
             // they were open, and the bytes written must be the ones on disk.
             byte[]? original = ReadSaveIfListIsCurrent();
             if (original is null) return;
 
-            byte[] modified = CarSetupsParser.InsertEntry(original, entryBytes);
+            byte[] modified = original;
+            foreach (var (_, _, setup) in named)
+                modified = CarSetupsParser.InsertEntry(modified, setup.Entry, setup.Prefix);
 
             // Re-read the result before anything touches the disk: on failure the
             // save is left exactly as it was, and no stray .bak is created.
-            if (!Dialogs.Verified(() => CarSetupsParser.VerifyIntegrity(modified, _setups.Count + 1))) return;
+            if (!Dialogs.Verified(() => CarSetupsParser.VerifyIntegrity(modified, _setups.Count + named.Count))) return;
 
             // Auto-backup
 
@@ -282,7 +298,9 @@ public partial class SetupTab : UserControl
             string bakInfo = ChkBackupOnImport.IsChecked == true
                 ? $"  Backup: {Path.GetFileName(bakPath)}"
                 : "";
-            Status($"✓  Setup imported for {carShown}.{bakInfo}");
+            string what = named.Count == 1 ? "Setup" : $"{named.Count} setups";
+            string cars = string.Join(", ", named.Select(n => n.Car).Distinct());
+            Status($"✓  {what} imported for {cars}.{bakInfo}");
         }
         catch (Exception ex) { Dialogs.Error(ex.Message, "Import error"); }
     }
@@ -501,14 +519,33 @@ public partial class SetupTab : UserControl
         return true;
     }
 
-    /// <summary>Build stamped in the .setup file waiting to be imported.</summary>
+    /// <summary>
+    /// The setups of a file to import, each one checked as a whole entry: the
+    /// single one of a .setup file, or those a .json file embeds.  The two are
+    /// told apart by what they hold, not by their extension.
+    /// </summary>
+    private static IReadOnlyList<SharedSetup> ReadImportFile(string path)
+    {
+        byte[] file = File.ReadAllBytes(path);
+        if (SetupShareJson.IsJson(file)) return SetupShareJson.Read(file);
+
+        CarSetupsParser.ValidateEntry(file);
+        return [new SharedSetup(null, file)];
+    }
+
+    /// <summary>Builds stamped in the setups of the file waiting to be imported.</summary>
     private void LoadImportVersion()
     {
         TxtSetupFileVersion.Text = "";
         if (string.IsNullOrEmpty(_importPath) || !File.Exists(_importPath)) return;
 
-        try { TxtSetupFileVersion.Text = CarSetupsParser.ReadEntryGameVersion(File.ReadAllBytes(_importPath)); }
-        catch { /* unreadable entry: the import itself will report it */ }
+        try
+        {
+            TxtSetupFileVersion.Text = string.Join(", ", ReadImportFile(_importPath)
+                .Select(s => CarSetupsParser.ReadEntryGameVersion(s.Entry))
+                .Distinct());
+        }
+        catch { /* unreadable file: the import itself will report it */ }
     }
 
     /// <summary>
