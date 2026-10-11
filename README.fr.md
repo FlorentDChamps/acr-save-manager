@@ -109,6 +109,13 @@ se termine exactement là où il le doit. L'écriture n'a lieu que si tout est
 vérifié — un format modifié par une future version du jeu fait donc échouer
 l'opération au lieu de produire un fichier que le jeu refuserait.
 
+### Notification de mise à jour au démarrage
+
+Une vérification légère des releases de ce dépôt ; si une version plus récente
+existe, une fenêtre pointe vers elle (rien n'est téléchargé sans votre
+confirmation) et peut être ignorée par version. Un bouton **Update available**
+reste à côté de l'interrupteur de thème tant que vous n'avez pas mis à jour.
+
 ---
 
 ## Formats de fichiers
@@ -215,7 +222,8 @@ voici ce qu'il signifie et quoi faire.
 - **Détection antivirus / Defender.** Un exe monofichier auto-extractible déclenche
   parfois les détecteurs heuristiques. L'application ne touche qu'à vos sauvegardes,
   à leurs backups, aux fichiers que vous exportez et à son propre `.config`, et
-  n'utilise jamais le réseau. Si Defender la met en quarantaine, c'est un faux
+  n'utilise le réseau que pour une chose : demander à GitHub, au démarrage, si une
+  release plus récente existe. Si Defender la met en quarantaine, c'est un faux
   positif — restaurez-la depuis la quarantaine, ou compilez l'exe vous-même depuis
   les sources (`publish.bat`).
 
@@ -259,6 +267,7 @@ src/
              complète
   UI/        fenêtre WPF — contrôles SetupTab et RaceTab, sélecteurs de fichiers,
              dialogues, backups, écriture atomique, fichier de réglages de l'interface
+  Updates/   vérification de release au démarrage (API GitHub)
   App        point d'entrée et gestionnaire d'erreur de dernier recours
   AppInfo    version, lue dans les métadonnées de l'assembly
 docs/

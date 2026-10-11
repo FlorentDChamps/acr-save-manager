@@ -10,6 +10,7 @@ namespace ACRSaveManager;
 public static class AppInfo
 {
     public static readonly string Version = Read();
+    public static readonly string RepositoryUrl = ReadMetadata("RepositoryUrl");
 
     private static string Read()
     {
@@ -28,5 +29,12 @@ public static class AppInfo
 
         string sha = raw[(plus + 1)..];
         return semver + "+" + (sha.Length > 7 ? sha[..7] : sha);
+    }
+
+    private static string ReadMetadata(string key)
+    {
+        foreach (var item in Assembly.GetExecutingAssembly().GetCustomAttributes<AssemblyMetadataAttribute>())
+            if (item.Key == key) return item.Value ?? "";
+        return "";
     }
 }

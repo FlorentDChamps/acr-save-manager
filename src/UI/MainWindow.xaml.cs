@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using ACRSaveManager.Updates;
 using Microsoft.Win32;
 
 namespace ACRSaveManager.UI;
@@ -12,6 +14,7 @@ public partial class MainWindow : Window
     // ── State ─────────────────────────────────────────────────────────────────
 
     private readonly AppSettings _settings = AppSettings.Load();
+    private AvailableUpdate? _availableUpdate;
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
@@ -36,6 +39,9 @@ public partial class MainWindow : Window
                            _settings.BackupOnImport);
 
         Closing += (_, _) => SaveSettings();
+
+        // once the window is shown: the update prompt needs it as its owner
+        Loaded += (_, _) => _ = CheckForUpdateAsync();
     }
 
     /// <summary>Remembered path if it still exists, else the game's default save.</summary>
@@ -107,6 +113,7 @@ public partial class MainWindow : Window
         ["Brush.ButtonPressed"] = C(0xE7, 0xE9, 0xEC),
         ["Brush.Muted"] = C(0x65, 0x6D, 0x76),
         ["Brush.Faint"] = C(0x8C, 0x95, 0x9F),
+        ["Brush.Accent"] = C(0x1A, 0x7F, 0x37),   // update notice
         ["Brush.Danger"] = C(0xB4, 0x23, 0x18),
         ["Brush.SwitchOff"] = C(0xCD, 0xD3, 0xDA),
         ["Brush.SwitchOn"] = C(0x65, 0x6D, 0x76),   // grey, no colour accent
@@ -133,6 +140,7 @@ public partial class MainWindow : Window
         ["Brush.ButtonPressed"] = C(0x30, 0x36, 0x3D),
         ["Brush.Muted"] = C(0x8B, 0x94, 0x9E),
         ["Brush.Faint"] = C(0x6E, 0x76, 0x81),
+        ["Brush.Accent"] = C(0x3F, 0xB9, 0x50),
         ["Brush.Danger"] = C(0xE5, 0x48, 0x4D),
         ["Brush.SwitchOff"] = C(0x3A, 0x42, 0x4C),
         ["Brush.SwitchOn"] = C(0x8B, 0x94, 0x9E),   // grey, no colour accent
@@ -143,6 +151,55 @@ public partial class MainWindow : Window
         ["Brush.RowAlt"] = C(0x1B, 0x21, 0x2A),
         ["Brush.Selection"] = C(0x2C, 0x35, 0x42),
     };
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Update notice
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private async Task CheckForUpdateAsync()
+    {
+        try
+        {
+            var update = await UpdateChecker.CheckAsync();
+            if (update == null || !IsLoaded) return;
+            _availableUpdate = update;
+            UpdateAvailableBtn.Visibility = Visibility.Visible;
+            if (update.Version != _settings.DismissedUpdateVersion)
+                ShowAvailableUpdateDialog();
+        }
+        catch
+        {
+            // An update check is optional: startup remains silent and unaffected
+            // when offline, rate-limited, or when GitHub is temporarily unavailable.
+        }
+    }
+
+    private void UpdateAvailableBtn_Click(object sender, RoutedEventArgs e) => ShowAvailableUpdateDialog();
+
+    private void ShowAvailableUpdateDialog()
+    {
+        var update = _availableUpdate;
+        if (update == null) return;
+        switch (UpdateAvailableDialog.Show(this, update))
+        {
+            case UpdateDialogResult.Download:
+                OpenUrl(update.DownloadUrl.AbsoluteUri);
+                break;
+            case UpdateDialogResult.Discard:
+                _settings.DismissedUpdateVersion = update.Version;
+                SaveSettings();
+                break;
+        }
+    }
+
+    private void OpenUrl(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+        }
+        catch (Exception ex) { SetStatus("Open URL error: " + ex.Message); }
+    }
 
     // ══════════════════════════════════════════════════════════════════════════
     // Window chrome (WindowStyle=None + WindowChrome: the caption is ours)

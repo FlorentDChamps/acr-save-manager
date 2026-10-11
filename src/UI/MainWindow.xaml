@@ -36,6 +36,7 @@
     <SolidColorBrush x:Key="Brush.ButtonPressed" Color="#E7E9EC"/>
     <SolidColorBrush x:Key="Brush.Muted"         Color="#656D76"/>
     <SolidColorBrush x:Key="Brush.Faint"         Color="#8C959F"/>
+    <SolidColorBrush x:Key="Brush.Accent"        Color="#1A7F37"/>
     <SolidColorBrush x:Key="Brush.Danger"        Color="#B42318"/>
     <SolidColorBrush x:Key="Brush.SwitchOff"     Color="#CDD3DA"/>
     <SolidColorBrush x:Key="Brush.SwitchOn"      Color="#656D76"/>
@@ -447,6 +448,10 @@
             <CheckBox x:Name="ThemeToggle" Style="{StaticResource ToggleSwitch}"
                       Checked="ThemeToggle_Changed" Unchecked="ThemeToggle_Changed"/>
           </StackPanel>
+          <Button x:Name="UpdateAvailableBtn" DockPanel.Dock="Right" Visibility="Collapsed"
+                  Content="Update available" FontSize="12" Padding="8,3" Margin="12,0,0,0"
+                  Foreground="{DynamicResource Brush.Accent}" Click="UpdateAvailableBtn_Click"
+                  ToolTip="A newer version is available. Click to view the update options."/>
           <TextBlock x:Name="TxtStatus" Text="Ready."
                      VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold"
                      TextTrimming="CharacterEllipsis"/>

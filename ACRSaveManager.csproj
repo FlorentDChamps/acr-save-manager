@@ -73,6 +73,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Expose the project property to runtime consumers (the update check). -->
+    <AssemblyMetadata Include="RepositoryUrl" Value="$(RepositoryUrl)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Shown in the custom title bar, so it must ship as a WPF resource too. -->
     <Resource Include="assets\icon.ico" />
   </ItemGroup>

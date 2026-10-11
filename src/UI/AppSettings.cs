@@ -12,6 +12,9 @@ public sealed class AppSettings
 {
     public bool Dark { get; set; }
     public bool HasTheme { get; set; }   // false on first run => follow the OS
+    // Latest update version dismissed with the "Discard" button. A different
+    // release version is still offered normally on the next startup.
+    public string DismissedUpdateVersion { get; set; } = "";
 
     // main window bounds (null on first run => the XAML defaults are used)
     public double? WinLeft { get; set; }

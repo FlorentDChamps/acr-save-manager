@@ -102,6 +102,13 @@ ends exactly where it should. The write is only performed if all of them hold,
 so a save format changed by a future game version aborts the operation instead
 of producing a file the game would reject.
 
+### Update notice at startup
+
+A lightweight version check against this repository's releases; if a newer build
+exists, a popup links to it (nothing is downloaded without your confirmation) and
+can be dismissed per version. An **Update available** button stays next to the
+theme toggle until you update.
+
 ---
 
 ## File formats
@@ -202,7 +209,8 @@ and what to do.
   unrecognised, not that a threat was found. Click **More info → Run anyway**.
 - **Antivirus / Defender flag.** A single self-extracting exe sometimes trips
   heuristic detectors. The app touches nothing but your save files, their backups,
-  the files you export and its own `.config`, and never uses the network. If
+  the files you export and its own `.config`, and uses the network for one thing
+  only: asking GitHub at startup whether a newer release exists. If
   Defender quarantines it, it is a false positive — restore it from quarantine, or
   build the exe yourself from source (`publish.bat`).
 
@@ -245,6 +253,7 @@ src/
              its setup-sharing JSON, whole-save JSON exporter
   UI/        WPF window — SetupTab and RaceTab controls, file pickers, dialogs,
              backups, atomic save writes, UI settings file
+  Updates/   startup release check (GitHub API)
   App        entry point and last-chance error handler
   AppInfo    version, read from the assembly metadata
 docs/
