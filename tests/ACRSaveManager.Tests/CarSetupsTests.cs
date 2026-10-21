@@ -277,6 +277,28 @@ public class CarSetupsTests
         Assert.Contains("not a setup file", ex.Message);
     }
 
+    [Theory]
+    [InlineData(4096, 4097)]   // ASCII: the length counts bytes
+    [InlineData(4095, -4097)]  // UTF-16: a negative length counting code units
+    public void A_string_longer_than_any_setup_holds_is_refused_not_read_as_empty(int chars, int length)
+    {
+        string name = length > 0 ? new string('x', chars) : "é" + new string('x', chars);
+        var setup = new Setup(name, "TestCarA");
+
+        var ex = Assert.Throws<InvalidDataException>(() => CarSetupsParser.ValidateEntry(SaveBuilder.Entry(setup)));
+        Assert.Contains($"Implausible string length {length}", ex.Message);
+        Assert.Throws<InvalidDataException>(() => CarSetupsParser.ParseSetups(SaveBuilder.CarSetups(setup)));
+    }
+
+    [Fact]
+    public void A_name_at_the_bound_still_reads()
+    {
+        var setup = new Setup(new string('x', 4095), "TestCarA");   // length 4096, terminator included
+
+        CarSetupsParser.ValidateEntry(SaveBuilder.Entry(setup));
+        Assert.Equal(setup.Name, Assert.Single(CarSetupsParser.ParseSetups(SaveBuilder.CarSetups(setup))).SetupName);
+    }
+
     [Fact]
     public void A_setup_that_names_no_car_is_refused_plainly()
     {
