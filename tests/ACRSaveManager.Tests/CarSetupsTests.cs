@@ -140,6 +140,26 @@ public class CarSetupsTests
         CarSetupsParser.VerifyIntegrity(back, 1);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void A_removal_leaves_every_other_entry_its_own_int32(int removed)
+    {
+        // TestCarB holds Bravo, Charlie and Delta: give each a value of its own
+        byte[] d0 = Save();
+        var block = Parse(d0).Where(e => e.CarName == "TestCarB").ToList();
+        int[] values = [18, 2, 34];
+        for (int i = 0; i < block.Count; i++) BitConverter.GetBytes(values[i]).CopyTo(d0, block[i].EntryStart - 4);
+
+        byte[] d1 = CarSetupsParser.RemoveEntry(d0, block[removed]);
+
+        CarSetupsParser.VerifyIntegrity(d1, 4);
+        var left = Parse(d1).Where(e => e.CarName == "TestCarB").ToList();
+        Assert.Equal(block.Where((_, i) => i != removed).Select(e => e.SetupName), left.Select(e => e.SetupName));
+        Assert.Equal(values.Where((_, i) => i != removed), left.Select(e => CarSetupsParser.ReadEntryPrefix(d1, e)));
+    }
+
     [Fact] // bug 1: offsets from a stale list hit another entry
     public void A_stale_entry_is_refused_instead_of_touching_its_neighbour()
     {

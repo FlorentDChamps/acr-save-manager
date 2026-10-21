@@ -25,6 +25,8 @@ public partial class MainWindow : Window
         Title = "ACR Save Manager " + AppInfo.Version;   // so bug reports carry a version
 
         RestoreWindowBounds();   // before the window is shown => no reposition flicker
+        // set before the window exists, the state raises no StateChanged
+        SyncMaximizeGlyph();
         // saved theme if any, else follow the OS light/dark setting on first run
         ApplyTheme(_settings.HasTheme ? _settings.Dark : OsPrefersDark());
 
@@ -218,10 +220,13 @@ public partial class MainWindow : Window
     protected override void OnStateChanged(EventArgs e)
     {
         base.OnStateChanged(e);
-        MaximizeBtn?.Content = WindowState == WindowState.Maximized
+        SyncMaximizeGlyph();
+    }
+
+    private void SyncMaximizeGlyph()
+        => MaximizeBtn?.Content = WindowState == WindowState.Maximized
                 ? RestoreGlyph
                 : MaximizeGlyph;
-    }
 
     protected override void OnSourceInitialized(EventArgs e)
     {

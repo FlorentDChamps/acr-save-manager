@@ -262,7 +262,8 @@ public static class CarSetupsParser
     /// <summary>
     /// Remove <paramref name="entry"/> from the file.
     /// If it was the only entry for its car, the entire car block is removed.
-    /// Handles inter-entry separators and updates size_field / n_cars / n_setups.
+    /// The int32 in front of it goes with it, so every entry left keeps its own,
+    /// and size_field / n_cars / n_setups are updated.
     /// </summary>
     public static byte[] RemoveEntry(byte[] data, SetupEntry entry)
     {
@@ -310,18 +311,12 @@ public static class CarSetupsParser
                         WriteInt32(r, sfOffset, ReadInt32(r, sfOffset) - removeLen);
                         return r;
                     }
-                    else if (si == 0)
-                    {
-                        // First entry: remove entry + following sep
-                        int removeLen = (entryEnd + 4) - entryStart;
-                        byte[] r = Splice(data, entryStart, removeLen, []);
-                        WriteInt32(r, nSetupsOffset, nSetups - 1);
-                        WriteInt32(r, sfOffset, ReadInt32(r, sfOffset) - removeLen);
-                        return r;
-                    }
                     else
                     {
-                        // Non-first entry: remove preceding sep + entry
+                        // The entry and the int32 in front of it, which is its own
+                        // (§4.2): the block header's for entry[0], whose place the
+                        // next entry's then takes. Cutting the following one
+                        // instead gave the next entry the removed one's value.
                         int removeStart = entryStart - 4;
                         int removeLen = entryEnd - removeStart;
                         byte[] r = Splice(data, removeStart, removeLen, []);
