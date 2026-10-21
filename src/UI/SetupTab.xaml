@@ -10,10 +10,12 @@
           <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
               <Button Content="Export selected setup" Style="{DynamicResource RowButton}"
+                      ToolTip="One setup: a .setup and its .json. Several, selected with Ctrl+click and Shift+click: a single .json holding them all."
                       Click="BtnExportSetup_Click"/>
               <Button Content="Rename selected setup" Style="{DynamicResource WriteButton}"
                       Click="BtnRenameSetup_Click"/>
               <Button Content="Remove" Style="{DynamicResource WriteButton}" Margin="0"
+                      ToolTip="Removes the selected setups. Ctrl+click and Shift+click select several."
                       Click="BtnRemoveSetup_Click"/>
             </StackPanel>
             <DockPanel>
@@ -59,7 +61,7 @@
           <DataGrid x:Name="GridSetups"
                     AutoGenerateColumns="False"
                     IsReadOnly="True"
-                    SelectionMode="Single"
+                    SelectionMode="Extended"
                     SelectionUnit="FullRow"
                     CanUserResizeRows="False"
                     VerticalScrollBarVisibility="Auto"

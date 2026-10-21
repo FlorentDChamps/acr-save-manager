@@ -43,7 +43,9 @@ timestamped backups and one-click restore.
   setup is kept for a single one. The `.json` is written in the format of
   [*AC Rally car setup manager*](https://www.overtake.gg/downloads/ac-rally-car-setup-manager-by-sheldor.85944/)
   by Sheldor — the parameters in readable form, and the entry itself — followed
-  by the setup's weathers, game mode tags and date.
+  by the setup's weathers, game mode tags and date. Several setups selected
+  together (Ctrl+click, Shift+click) are exported to a single `.json` holding
+  them all, named `[{Car}_]{n}_setups_{Timestamp}.json` by default.
 - **Import** a `.setup` file into the current save, or a `.json` in that format,
   whichever of the two tools wrote it, with a warning when it comes from
   another game release. A `.json` holding several setups adds them all in one
@@ -51,6 +53,7 @@ timestamped backups and one-click restore.
   original, auto-incremented on collision), so an imported setup never silently
   replaces one of yours.
 - **Rename** and **Remove** the selected setup, in place, inside the save file.
+  Several selected setups are removed in one write, under one backup.
 - **Backup / Restore** the save file, and **Open folder** to reach it in Explorer.
 
 ### Race tab (`PlayerDataSaveSlot.sav`)

@@ -33,7 +33,10 @@ public class SetupShareSetup
     public DateTime? SavedAt { get; init; }   // the player's own clock, no time zone
 }
 
-/// <summary>The JSON document written next to an exported .setup.</summary>
+/// <summary>
+/// The JSON document written next to an exported .setup, or alone for several
+/// setups exported together.
+/// </summary>
 public class SetupShareFile
 {
     public string ExportVersion { get; init; } = "";
@@ -95,44 +98,57 @@ public static class SetupShareJson
     /// save. It is signed with the in-game name the entry carries, never with
     /// the Windows account.
     /// </summary>
-    public static SetupShareFile Build(int prefix, byte[] entry, DateTimeOffset exportedAt)
+    public static SetupShareFile Build(int prefix, byte[] entry, DateTimeOffset exportedAt) =>
+        Build([(prefix, entry)], exportedAt);
+
+    /// <summary>
+    /// The document for several setups, in the order given, each one with the
+    /// int32 in front of it in the save. It is signed with the in-game name they
+    /// carry, and left unsigned when they come from more than one player. An
+    /// entry with no name, written before game 0.5, names no other player.
+    /// </summary>
+    public static SetupShareFile Build(IReadOnlyList<(int Prefix, byte[] Entry)> setups, DateTimeOffset exportedAt)
     {
-        var data = CarSetupsParser.ReadEntryData(entry);
+        var data = setups.Select(s => CarSetupsParser.ReadEntryData(s.Entry)).ToList();
+        var authors = data.Select(d => d.Author).Where(a => a.Length > 0).Distinct().ToList();
+
+        return new SetupShareFile
+        {
+            ExportVersion = ExportVersion,
+            ExportedBy = authors.Count == 1 ? authors[0] : "",
+            ExportedAt = exportedAt.ToString("O", CultureInfo.InvariantCulture),
+            SourceGame = SourceGame,
+            Setups = [.. setups.Select((s, i) => Setup(s.Prefix, s.Entry, data[i]))],
+        };
+    }
+
+    private static SetupShareSetup Setup(int prefix, byte[] entry, SetupExportData data)
+    {
         string surface = data.Surfaces.Count > 0 ? data.Surfaces[0] : "";
 
         byte[] template = new byte[4 + entry.Length];
         BitConverter.GetBytes(prefix).CopyTo(template, 0);
         entry.CopyTo(template, 4);
 
-        return new SetupShareFile
+        return new SetupShareSetup
         {
-            ExportVersion = ExportVersion,
-            ExportedBy = data.Author,
-            ExportedAt = exportedAt.ToString("O", CultureInfo.InvariantCulture),
-            SourceGame = SourceGame,
-            Setups =
-            [
-                new SetupShareSetup
-                {
-                    CarName = data.Car,
-                    FriendlyCarName = FriendlyName(data.Car),
-                    Surface = surface,
-                    GameVersion = data.GameVersion,
-                    Surfaces = data.Surfaces,
-                    UserDefinedName = data.Name,
-                    StageName = data.Track,
-                    TemplateDataBase64 = Convert.ToBase64String(template),
-                    SetupHash = Hash(data.Parameters),
-                    Properties = data.Parameters,
-                    UniqueKey = $"{data.Car}|{surface}|{data.Track}",
-                    FriendlySurface = FriendlyName(surface),
-                    SurfaceEmoji = SurfaceEmoji,
-                    FriendlyStage = FriendlyName(data.Track),
-                    Weathers = data.Weathers,
-                    Tags = data.Tags,
-                    SavedAt = data.Timestamp == DateTime.MinValue ? null : data.Timestamp,
-                },
-            ],
+            CarName = data.Car,
+            FriendlyCarName = FriendlyName(data.Car),
+            Surface = surface,
+            GameVersion = data.GameVersion,
+            Surfaces = data.Surfaces,
+            UserDefinedName = data.Name,
+            StageName = data.Track,
+            TemplateDataBase64 = Convert.ToBase64String(template),
+            SetupHash = Hash(data.Parameters),
+            Properties = data.Parameters,
+            UniqueKey = $"{data.Car}|{surface}|{data.Track}",
+            FriendlySurface = FriendlyName(surface),
+            SurfaceEmoji = SurfaceEmoji,
+            FriendlyStage = FriendlyName(data.Track),
+            Weathers = data.Weathers,
+            Tags = data.Tags,
+            SavedAt = data.Timestamp == DateTime.MinValue ? null : data.Timestamp,
         };
     }
 

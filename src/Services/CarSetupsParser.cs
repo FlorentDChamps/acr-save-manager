@@ -83,6 +83,22 @@ public static class CarSetupsParser
         return string.Concat(name.Select(c => Array.IndexOf(invalid, c) >= 0 ? '_' : c));
     }
 
+    /// <summary>
+    /// Default name of the .json that holds several setups: the car when they
+    /// all are for one, how many there are, and the date of the newest, as
+    /// {Car}_{n}_setups_{timestamp}.json or {n}_setups_{timestamp}.json.
+    /// </summary>
+    public static string BuildExportFileName(IReadOnlyList<SetupEntry> entries)
+    {
+        var cars = entries.Select(e => e.CarName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        string car = cars.Count == 1 ? $"{cars[0]}_" : "";
+        var newest = entries.Max(e => e.Timestamp);
+        string ts = newest == DateTime.MinValue ? "" : $"_{newest:yyyyMMdd_HHmmss}";
+        string name = $"{car}{entries.Count}_setups{ts}.json";
+        char[] invalid = Path.GetInvalidFileNameChars();
+        return string.Concat(name.Select(c => Array.IndexOf(invalid, c) >= 0 ? '_' : c));
+    }
+
     /// <summary>Parse all setup entries from the file bytes.</summary>
     public static List<SetupEntry> ParseSetups(byte[] data) =>
         ParseSetups(data, out _);
@@ -332,6 +348,20 @@ public static class CarSetupsParser
         }
 
         throw new InvalidDataException($"Entry '{entry.SetupName}' not found in file.");
+    }
+
+    /// <summary>
+    /// Remove every one of <paramref name="entries"/> from the file, in one
+    /// result.  They are taken from the last to the first: a removal only moves
+    /// the bytes after the entry it cuts, and rewrites counts that stay where
+    /// they are, so the offsets of the entries still to remove hold.
+    /// </summary>
+    public static byte[] RemoveEntries(byte[] data, IEnumerable<SetupEntry> entries)
+    {
+        byte[] result = data;
+        foreach (var entry in entries.Distinct().OrderByDescending(e => e.EntryStart))
+            result = RemoveEntry(result, entry);
+        return result;
     }
 
     /// <summary>

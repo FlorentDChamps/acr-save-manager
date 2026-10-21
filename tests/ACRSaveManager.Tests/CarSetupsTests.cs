@@ -140,6 +140,28 @@ public class CarSetupsTests
         CarSetupsParser.VerifyIntegrity(back, 1);
     }
 
+    [Fact]
+    public void Any_set_of_setups_removed_at_once_gives_the_file_removed_one_by_one()
+    {
+        byte[] d0 = Save();
+        var l0 = Parse(d0);
+
+        for (int mask = 1; mask < 1 << l0.Count; mask++)
+        {
+            var chosen = l0.Where((_, i) => (mask & 1 << i) != 0).ToList();
+
+            // one at a time, from a fresh list each time, as single removes would
+            byte[] expected = d0;
+            foreach (var c in chosen)
+                expected = CarSetupsParser.RemoveEntry(expected, Parse(expected).Single(e => e.SetupName == c.SetupName));
+
+            byte[] once = CarSetupsParser.RemoveEntries(d0, chosen);   // in list order
+            CarSetupsParser.VerifyIntegrity(once, l0.Count - chosen.Count);
+            Assert.Equal(expected, once);
+            Assert.Equal(expected, CarSetupsParser.RemoveEntries(d0, Enumerable.Reverse(chosen)));
+        }
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
@@ -158,6 +180,27 @@ public class CarSetupsTests
         var left = Parse(d1).Where(e => e.CarName == "TestCarB").ToList();
         Assert.Equal(block.Where((_, i) => i != removed).Select(e => e.SetupName), left.Select(e => e.SetupName));
         Assert.Equal(values.Where((_, i) => i != removed), left.Select(e => CarSetupsParser.ReadEntryPrefix(d1, e)));
+    }
+
+    [Fact]
+    public void The_name_of_a_json_of_several_setups_says_the_car_when_they_share_one()
+    {
+        var list = Parse(Save());
+
+        string ts = list.Max(e => e.Timestamp).ToString("yyyyMMdd_HHmmss");
+        Assert.Equal($"TestCarB_3_setups_{ts}.json",
+            CarSetupsParser.BuildExportFileName([.. list.Where(e => e.CarName == "TestCarB")]));
+        Assert.Equal($"5_setups_{ts}.json", CarSetupsParser.BuildExportFileName(list));
+    }
+
+    [Fact]
+    public void A_stale_entry_among_several_refuses_them_all()
+    {
+        byte[] d0 = Save();
+        var l0 = Parse(d0);
+        var stale = l0[1] with { EntryStart = l0[1].EntryStart + 1 };
+
+        Assert.Throws<InvalidDataException>(() => CarSetupsParser.RemoveEntries(d0, [l0[0], stale, l0[4]]));
     }
 
     [Fact] // bug 1: offsets from a stale list hit another entry

@@ -46,7 +46,9 @@ réécrit les parties choisies, et exporte toute la sauvegarde joueur en JSON li
   que si le setup n'en retient qu'une. Le `.json` suit le format de
   [*AC Rally car setup manager*](https://www.overtake.gg/downloads/ac-rally-car-setup-manager-by-sheldor.85944/)
   de Sheldor — les paramètres sous forme lisible, et l'entrée elle-même — suivi
-  des météos, des tags de mode de jeu et de la date du setup.
+  des météos, des tags de mode de jeu et de la date du setup. Plusieurs setups
+  sélectionnés ensemble (Ctrl+clic, Maj+clic) sont exportés dans un seul `.json`
+  qui les contient tous, nommé par défaut `[{Voiture}_]{n}_setups_{Horodatage}.json`.
 - **Import** d'un fichier `.setup` dans la sauvegarde courante, ou d'un `.json` à
   ce format, qu'il vienne de l'un ou l'autre outil, avec un avertissement
   s'il vient d'une autre version du jeu. Un `.json` contenant plusieurs setups
@@ -54,6 +56,8 @@ réécrit les parties choisies, et exporte toute la sauvegarde joueur en JSON li
   (pré-rempli avec l'original, incrémenté automatiquement en cas de collision) : un
   setup importé ne remplace jamais un des vôtres en silence.
 - **Rename** et **Remove** du setup sélectionné, sur place, dans le fichier.
+  Plusieurs setups sélectionnés sont retirés en une seule écriture, avec un seul
+  backup.
 - **Backup / Restore** du fichier de sauvegarde, et **Open folder** pour l'ouvrir
   dans l'Explorateur.
 

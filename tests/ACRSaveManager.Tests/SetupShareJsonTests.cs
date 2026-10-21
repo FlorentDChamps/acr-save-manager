@@ -240,6 +240,35 @@ public class SetupShareJsonTests
     }
 
     [Fact]
+    public void Several_setups_go_into_one_document_and_come_back_as_they_went()
+    {
+        byte[] alpha = SaveBuilder.Entry(Alpha), bravo = SaveBuilder.Entry(new Setup("Bravo", "TestCarB", Author: "Someone"));
+        var file = SetupShareJson.Build([(2, alpha), (18, bravo)], At);
+
+        Assert.Equal("Someone", file.ExportedBy);   // the name both carry
+        Assert.Equal(["Alpha", "Bravo"], file.Setups.Select(s => s.UserDefinedName));
+        Assert.Equal(SetupShareJson.Build(2, alpha, At).Setups[0].SetupHash, file.Setups[0].SetupHash);
+
+        var read = SetupShareJson.Read(Encoding.UTF8.GetBytes(SetupShareJson.Serialize(file)));
+        Assert.Equal([2, 18], read.Select(s => s.Prefix));
+        Assert.Equal(alpha, read[0].Entry);
+        Assert.Equal(bravo, read[1].Entry);
+    }
+
+    [Fact]
+    public void Setups_of_several_players_leave_the_document_unsigned()
+    {
+        var file = SetupShareJson.Build(
+            [(2, SaveBuilder.Entry(Alpha)), (2, SaveBuilder.Entry(new Setup("Bravo", "TestCarB", Author: "Other")))], At);
+
+        Assert.Equal("", file.ExportedBy);
+
+        // a setup saved before game 0.5 carries no name, and names no other player
+        Assert.Equal("Someone", SetupShareJson.Build(
+            [(2, SaveBuilder.Entry(Alpha)), (2, SaveBuilder.Entry(new Setup("Bravo", "TestCarB")))], At).ExportedBy);
+    }
+
+    [Fact]
     public void A_json_file_is_told_from_a_setup_entry_by_its_content()
     {
         Assert.True(SetupShareJson.IsJson(FileOf(Alpha)));                  // behind its BOM

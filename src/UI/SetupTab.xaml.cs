@@ -124,12 +124,20 @@ public partial class SetupTab : UserControl
 
     private void BtnExportSetup_Click(object sender, RoutedEventArgs e)
     {
-        if (GridSetups.SelectedItem is not SetupEntry entry)
+        var selected = SelectedSetups();
+        if (selected.Count == 0)
         {
             Dialogs.Warn("Select a setup from the list.", "Selection required");
             return;
         }
         if (!ValidateSetupFile()) return;
+
+        if (selected.Count > 1)
+        {
+            ExportSeveral(selected);
+            return;
+        }
+        var entry = selected[0];
 
         try
         {
@@ -163,6 +171,37 @@ public partial class SetupTab : UserControl
             Status(
                 $"✓  Setup exported: {Path.GetFileName(dlg.FileName)}  ({bytes.Length} bytes)  " +
                 $"+ {Path.GetFileName(jsonPath)}");
+        }
+        catch (Exception ex) { Dialogs.Error(ex.Message, "Export error"); }
+    }
+
+    /// <summary>
+    /// Several setups go into one .json and nothing else: a .setup file holds a
+    /// single entry, and the .json carries each one whole, with its int32.
+    /// </summary>
+    private void ExportSeveral(List<SetupEntry> selected)
+    {
+        try
+        {
+            byte[]? data = ReadSaveIfListIsCurrent();
+            if (data is null) return;
+
+            var setups = selected
+                .Select(s => (CarSetupsParser.ReadEntryPrefix(data, s), CarSetupsParser.ExtractEntry(data, s)))
+                .ToList();
+
+            var dlg = new SaveFileDialog
+            {
+                Title = $"Export {selected.Count} setups",
+                Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+                FileName = CarSetupsParser.BuildExportFileName(selected),
+            };
+            if (dlg.ShowDialog() != true) return;
+
+            string json = SetupShareJson.Serialize(SetupShareJson.Build(setups, DateTimeOffset.Now));
+            File.WriteAllText(dlg.FileName, json, Encoding.UTF8);
+
+            Status($"✓  {selected.Count} setups exported: {Path.GetFileName(dlg.FileName)}");
         }
         catch (Exception ex) { Dialogs.Error(ex.Message, "Export error"); }
     }
@@ -307,11 +346,7 @@ public partial class SetupTab : UserControl
 
     private void BtnRenameSetup_Click(object sender, RoutedEventArgs e)
     {
-        if (GridSetups.SelectedItem is not SetupEntry entry)
-        {
-            Dialogs.Warn("Select a setup from the list.", "Selection required");
-            return;
-        }
+        if (SingleSelected() is not SetupEntry entry) return;
         if (!ValidateSetupFile()) return;
 
         if (!Dialogs.Confirm(
@@ -366,16 +401,20 @@ public partial class SetupTab : UserControl
 
     private void BtnRemoveSetup_Click(object sender, RoutedEventArgs e)
     {
-        if (GridSetups.SelectedItem is not SetupEntry entry)
+        var selected = SelectedSetups();
+        if (selected.Count == 0)
         {
             Dialogs.Warn("Select a setup from the list.", "Selection required");
             return;
         }
         if (!ValidateSetupFile()) return;
 
+        string what = selected.Count == 1
+            ? $"\"{selected[0].SetupName}\" ({selected[0].CarName})"
+            : $"these {selected.Count} setups";
         if (!Dialogs.Confirm(
                 $"⚠  Make sure Assetto Corsa Rally is closed.\n\n" +
-                $"Remove \"{entry.SetupName}\" ({entry.CarName}) permanently from the sav?\n\n" +
+                $"Remove {what} permanently from the sav?{ListOf(selected)}\n\n" +
                 $"A backup will be created automatically.",
                 "Confirm remove — game must be closed"))
         {
@@ -387,20 +426,58 @@ public partial class SetupTab : UserControl
             byte[]? original = ReadSaveIfListIsCurrent();
             if (original is null) return;
 
-            byte[] modified = CarSetupsParser.RemoveEntry(original, entry);
+            // all of them in one write, under one backup
+            byte[] modified = CarSetupsParser.RemoveEntries(original, selected);
 
             // Re-read the result before anything touches the disk: on failure the
             // save is left exactly as it was, and no stray .bak is created.
-            if (!Dialogs.Verified(() => CarSetupsParser.VerifyIntegrity(modified, _setups.Count - 1))) return;
+            if (!Dialogs.Verified(() => CarSetupsParser.VerifyIntegrity(modified, _setups.Count - selected.Count))) return;
 
             // Auto-backup
             string bakPath = Backups.Write(_setupPath, original);
 
             AtomicFile.Write(_setupPath, modified);
             LoadSetups();
-            Status($"✓  Removed \"{entry.SetupName}\" ({entry.CarName}).  Backup: {Path.GetFileName(bakPath)}");
+            Status(selected.Count == 1
+                ? $"✓  Removed {what}.  Backup: {Path.GetFileName(bakPath)}"
+                : $"✓  Removed {selected.Count} setups.  Backup: {Path.GetFileName(bakPath)}");
         }
         catch (Exception ex) { Dialogs.Error(ex.Message, "Remove error"); }
+    }
+
+    /// <summary>The selected setups, in the order of the file, whatever order they were clicked in.</summary>
+    private List<SetupEntry> SelectedSetups() =>
+        [.. _setups.Where(GridSetups.SelectedItems.Contains)];
+
+    /// <summary>
+    /// The one selected setup, for an action that takes one. Says why not, and
+    /// gives null, when none or several are selected.
+    /// </summary>
+    private SetupEntry? SingleSelected()
+    {
+        if (GridSetups.SelectedItems.Count > 1)
+        {
+            Dialogs.Warn("Select a single setup from the list: only Export and Remove take several.", "Selection required");
+            return null;
+        }
+        if (GridSetups.SelectedItem is SetupEntry entry) return entry;
+
+        Dialogs.Warn("Select a setup from the list.", "Selection required");
+        return null;
+    }
+
+    /// <summary>
+    /// The setups a confirmation is about, one per line, when there are several
+    /// — the first ones only, so the dialog keeps to the screen.
+    /// </summary>
+    private static string ListOf(List<SetupEntry> setups)
+    {
+        const int Shown = 12;
+        if (setups.Count < 2) return "";
+
+        var lines = setups.Take(Shown).Select(s => $"\n    • {s.SetupName} ({s.CarName})");
+        string more = setups.Count > Shown ? $"\n    … and {setups.Count - Shown} more" : "";
+        return "\n" + string.Concat(lines) + more;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
