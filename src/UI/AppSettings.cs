@@ -27,6 +27,8 @@ public sealed class AppSettings
     public string SetupPath { get; set; } = "";
     public string SavePath { get; set; } = "";
     public bool BackupOnImport { get; set; } = true;
+    // backups kept per save, older ones sent to the Recycle Bin; 0 keeps all
+    public int BackupsKept { get; set; } = 10;
 
     private static readonly JsonSerializerOptions Opts = new() { WriteIndented = true };
 

@@ -186,7 +186,7 @@ public partial class RaceTab : UserControl
 
         try
         {
-            Status($"✓  Backup created: {Path.GetFileName(WriteBackup(File.ReadAllBytes(_savePath)))}");
+            Status(Backups.Made(Backups.Take(_savePath, File.ReadAllBytes(_savePath))));
         }
         catch (Exception ex) { Dialogs.Error(ex.Message, "Backup error"); }
     }
@@ -336,7 +336,7 @@ public partial class RaceTab : UserControl
         catch (ArgumentOutOfRangeException) { return name; }
     }
 
-    /// <summary>Timestamped .bak next to the save. Returns its path.</summary>
+    /// <summary>Timestamped .bak in the backup folder beside the save. Returns its path.</summary>
     private string WriteBackup(byte[] contents) => Backups.Write(_savePath, contents);
 
     private void SetRacePath(string path)

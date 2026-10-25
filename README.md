@@ -90,11 +90,21 @@ or a car. So they travel together, in one `.race` file.
 | Restore | asked each time, before the final confirmation |
 | Everything else (list, export, JSON) | read-only, the save is never touched |
 
-A `.bak` is written next to the save it copies, as
-`{SaveName}_{yyyyMMdd_HHmmss}.bak`, and **Restore** puts any of them back. The two
-saves keep their backups in the same folder under the same extension, so
-**Restore** reads the file you pick first and refuses a setups backup in the Race
-tab, or a player backup in the Setup tab.
+A `.bak` is written in the `ACRSaveManager Backups` folder next to the save it
+copies, as `{SaveName}_{yyyyMMdd_HHmmss}.bak`, and **Restore** puts any of them
+back. The two saves keep their backups in the same folder under the same
+extension, so **Restore** reads the file you pick first and refuses a setups
+backup in the Race tab, or a player backup in the Setup tab.
+
+- **The 10 newest backups of each save are kept**; older ones go to the Recycle
+  Bin as each new one is written. `BackupsKept` in `ACRSaveManager.config` sets
+  the count, and `0` keeps them all.
+- **No duplicate**: when the save holds the same bytes as its newest backup, no
+  new one is written.
+- Only files named as above are counted: rename a `.bak` (say
+  `CarSetupsDataSaveSlot_before-rally.bak`) and it is kept for good.
+- Backups that earlier versions wrote next to the save move into the folder the
+  next time that save is backed up.
 
 ### Integrity check before writing
 
@@ -237,7 +247,7 @@ If you would rather not trust a prebuilt binary at all, clone the repo and run
 | Setup list / export / import / rename / remove | ✅ parsed and rewritten in place |
 | Race configurations extract & write | ✅ boundaries walked from the EventConfig structure, game modes matched by name, save size field fixed up |
 | Player save JSON export | ✅ the whole file; unknown sections are reported instead of aborting the export |
-| Backups | ✅ timestamped `.bak` + restore; automatic on Rename, Remove and Write, optional on Import and Restore |
+| Backups | ✅ timestamped `.bak` + restore; automatic on Rename, Remove and Write, optional on Import and Restore; the 10 newest kept per save |
 | Writing while the game runs | ❌ not supported — the file is locked, and ACR rewrites it on exit |
 | Cross-version setups | 🟡 the build that wrote each entry is shown and compared at import; a mismatch warns, it does not block |
 | Setup JSON of *AC Rally car setup manager* | 🟡 written and read; a file edited by hand is refused, and the friendly car name may differ from that tool's for a car missing from its list |

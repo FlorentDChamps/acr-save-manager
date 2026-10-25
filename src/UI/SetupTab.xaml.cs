@@ -97,8 +97,7 @@ public partial class SetupTab : UserControl
 
         try
         {
-            string bakPath = Backups.Write(_setupPath, File.ReadAllBytes(_setupPath));
-            Status($"✓  Backup created: {Path.GetFileName(bakPath)}");
+            Status(Backups.Made(Backups.Take(_setupPath, File.ReadAllBytes(_setupPath))));
         }
         catch (Exception ex) { Dialogs.Error(ex.Message, "Backup error"); }
     }

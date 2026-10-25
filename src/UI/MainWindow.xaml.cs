@@ -28,6 +28,8 @@ public partial class MainWindow : Window
         // set before the window exists, the state raises no StateChanged
         SyncMaximizeGlyph();
         // saved theme if any, else follow the OS light/dark setting on first run
+        Backups.Keep = _settings.BackupsKept;
+
         ApplyTheme(_settings.HasTheme ? _settings.Dark : OsPrefersDark());
 
         // Race tab — the save used last, else the game's own

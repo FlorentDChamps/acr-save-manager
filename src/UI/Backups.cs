@@ -7,16 +7,27 @@ namespace ACRSaveManager.UI;
 /// <summary>Backup and restore of a save file, shared by the Setup and Race tabs.</summary>
 internal static class Backups
 {
-    /// <summary>Timestamped .bak next to <paramref name="savePath"/>. Returns its path.</summary>
-    public static string Write(string savePath, byte[] contents)
-    {
-        string ts = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        string bakPath = Path.Combine(
-            Path.GetDirectoryName(savePath)!,
-            $"{Path.GetFileNameWithoutExtension(savePath)}_{ts}.bak");
-        File.WriteAllBytes(bakPath, contents);
-        return bakPath;
-    }
+    /// <summary>
+    /// How many backups of each save are kept; older ones go to the Recycle
+    /// Bin. 0 or less keeps them all. From the .config.
+    /// </summary>
+    public static int Keep { get; set; } = 10;
+
+    /// <summary>
+    /// Timestamped .bak in the backup folder beside <paramref name="savePath"/>,
+    /// unless the newest one already holds these bytes. Returns the path of the
+    /// backup that does.
+    /// </summary>
+    public static string Write(string savePath, byte[] contents) => Take(savePath, contents).Path;
+
+    /// <summary>As <see cref="Write"/>, saying whether a new file was written.</summary>
+    public static BackupWritten Take(string savePath, byte[] contents, string? spare = null) =>
+        BackupStore.Write(savePath, contents, Keep, RecycleBin.Send, spare);
+
+    /// <summary>Status line of a Backup button.</summary>
+    public static string Made(BackupWritten bak) => bak.Created
+        ? $"✓  Backup created: {Path.GetFileName(bak.Path)}"
+        : $"✓  Already backed up, unchanged since: {Path.GetFileName(bak.Path)}";
 
     /// <summary>
     /// Lets the user pick a .bak and puts it back over <paramref name="savePath"/>.
@@ -31,11 +42,12 @@ internal static class Backups
     /// </summary>
     public static string? Restore(string savePath, SaveKind kind)
     {
+        string folder = BackupStore.FolderFor(savePath);
         var dlg = new OpenFileDialog
         {
             Title = "Select a backup (.bak)",
             Filter = "Backup files (*.bak)|*.bak|All files (*.*)|*.*",
-            InitialDirectory = Path.GetDirectoryName(savePath)!,
+            InitialDirectory = Directory.Exists(folder) ? folder : Path.GetDirectoryName(savePath)!,
         };
         if (dlg.ShowDialog() != true) return null;
 
@@ -81,8 +93,9 @@ internal static class Backups
             return null;
         }
 
+        // the backup being restored is spared by the rotation this backup runs
         string bakInfo = backupFirst == true
-            ? $"  Backup: {Path.GetFileName(Write(savePath, File.ReadAllBytes(savePath)))}"
+            ? $"  Backup: {Path.GetFileName(Take(savePath, File.ReadAllBytes(savePath), bakPath).Path)}"
             : "";
 
         // The bytes that were checked are the bytes written, rather than a second

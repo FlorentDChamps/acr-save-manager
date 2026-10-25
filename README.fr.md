@@ -98,11 +98,22 @@ spéciale ou une voiture. Elles voyagent donc ensemble, dans un seul fichier
 | Restore | demandé à chaque fois, avant la confirmation finale |
 | Tout le reste (liste, export, JSON) | lecture seule, la sauvegarde n'est pas touchée |
 
-Le `.bak` est écrit à côté de la sauvegarde qu'il copie, sous la forme
-`{NomSauvegarde}_{aaaaMMjj_HHmmss}.bak`, et **Restore** remet n'importe lequel en place.
-Les deux sauvegardes rangent leurs backups dans le même dossier, sous la même
-extension : **Restore** lit donc d'abord le fichier choisi et refuse un backup de
-setups dans l'onglet Race, ou un backup joueur dans l'onglet Setup.
+Le `.bak` est écrit dans le dossier `ACRSaveManager Backups`, à côté de la
+sauvegarde qu'il copie, sous la forme `{NomSauvegarde}_{aaaaMMjj_HHmmss}.bak`, et
+**Restore** remet n'importe lequel en place. Les deux sauvegardes rangent leurs
+backups dans le même dossier, sous la même extension : **Restore** lit donc
+d'abord le fichier choisi et refuse un backup de setups dans l'onglet Race, ou un
+backup joueur dans l'onglet Setup.
+
+- **Les 10 backups les plus récents de chaque sauvegarde sont gardés** ; les plus
+  anciens partent à la Corbeille à chaque nouveau backup. `BackupsKept` dans
+  `ACRSaveManager.config` règle ce nombre, et `0` les garde tous.
+- **Pas de doublon** : si la sauvegarde est identique à son dernier backup, aucun
+  nouveau n'est écrit.
+- Seuls les fichiers nommés comme ci-dessus comptent : renommez un `.bak` (par
+  exemple `CarSetupsDataSaveSlot_avant-rallye.bak`) et il est gardé pour de bon.
+- Les backups que les versions précédentes écrivaient à côté de la sauvegarde
+  rejoignent le dossier au prochain backup de cette sauvegarde.
 
 ### Vérification d'intégrité avant écriture
 
@@ -251,7 +262,7 @@ lancez `publish.bat` — l'exe obtenu est l'exe que vous exécutez.
 | Liste / export / import / rename / remove des setups | ✅ parsés et réécrits sur place |
 | Extraction & écriture des configurations de course | ✅ bornes parcourues depuis la structure EventConfig, modes de jeu appariés par nom, champ de taille de la sauvegarde recalculé |
 | Export JSON de la sauvegarde joueur | ✅ tout le fichier ; une section inconnue est signalée au lieu d'interrompre l'export |
-| Backups | ✅ `.bak` horodaté + restauration ; automatique sur Rename, Remove et Write, optionnel sur Import et Restore |
+| Backups | ✅ `.bak` horodaté + restauration ; automatique sur Rename, Remove et Write, optionnel sur Import et Restore ; les 10 plus récents gardés par sauvegarde |
 | Écriture jeu ouvert | ❌ non supportée — le fichier est verrouillé, et ACR le réécrit en quittant |
 | Setups entre versions | 🟡 la version qui a écrit chaque entrée est affichée et comparée à l'import ; un écart avertit, il ne bloque pas |
 | JSON setup de *AC Rally car setup manager* | 🟡 écrit et lu ; un fichier édité à la main est refusé, et le nom lisible de la voiture peut différer de celui de l'outil pour une voiture absente de sa liste |
