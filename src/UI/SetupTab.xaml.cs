@@ -320,9 +320,12 @@ public partial class SetupTab : UserControl
                 return;
             }
 
-            // A name is asked for each setup before anything is written: giving
-            // up on one of them gives up on the whole file.
+            // A name is asked for each setup before anything is written. Of a
+            // file of several, Skip leaves that one out and goes on with the
+            // next, so a few can be picked from a bigger file; for a single
+            // setup, Cancel gives up on the import.
             var named = new List<(string Car, string Name, SharedSetup Setup)>();
+            int skipped = 0;
             for (int i = 0; i < incoming.Count; i++)
             {
                 var (prefix, entryBytes) = incoming[i];
@@ -339,30 +342,57 @@ public partial class SetupTab : UserControl
                     _setups.Any(s => SameCar(s.CarName, carName) && s.SetupName == name) ||
                     named.Any(n => SameCar(n.Car, carName) && n.Name == name);
 
-                // Always prompt for name; suggest unique candidate if collision
-                string defaultName = setupName;
-                for (int idx = 2; Taken(defaultName); idx++)
-                    defaultName = $"{setupName}_{idx}";
-
-                string which = incoming.Count == 1 ? "" : $"Setup {i + 1} of {incoming.Count} — ";
-                string? chosenName = ShowInputDialog(
-                    $"{which}Setup name for import (car: {carShown}):",
-                    "Import — set name",
-                    defaultName);
-
-                if (string.IsNullOrWhiteSpace(chosenName)) return;
-                chosenName = chosenName.Trim();
-
-                if (Taken(chosenName))
+                // the name itself when free, else the first free name_2, name_3…
+                string Free(string name)
                 {
-                    Dialogs.Warn($"Setup \"{chosenName}\" already exists for {carShown}. Choose another name.", "Name conflict");
-                    return;
+                    string free = name;
+                    for (int idx = 2; Taken(free); idx++)
+                        free = $"{name}_{idx}";
+                    return free;
+                }
+
+                // Always prompt for name; suggest unique candidate if collision
+                string defaultName = Free(setupName);
+
+                bool several = incoming.Count > 1;
+                string which = several ? $"Setup {i + 1} of {incoming.Count} — " : "";
+                string? chosenName;
+                // asked again until the name is free, or the setup given up
+                while (true)
+                {
+                    chosenName = ShowInputDialog(
+                        $"{which}Setup name for import (car: {carShown}):",
+                        "Import — set name",
+                        defaultName,
+                        several ? "Skip" : "Cancel");
+                    if (chosenName is null) break;
+
+                    if (chosenName.Length == 0)
+                        Dialogs.Warn("Enter a name for the setup.", "Name required");
+                    else if (Taken(chosenName))
+                        Dialogs.Warn($"Setup \"{chosenName}\" already exists for {carShown}. Choose another name.", "Name conflict");
+                    else
+                        break;
+                    if (chosenName.Length > 0) defaultName = Free(chosenName);
+                }
+
+                if (chosenName is null)
+                {
+                    if (!several) return;
+                    skipped++;
+                    continue;
                 }
 
                 if (chosenName != setupName)
                     entryBytes = CarSetupsParser.RenameEntry(entryBytes, chosenName);
 
                 named.Add((carShown, chosenName, new SharedSetup(prefix, entryBytes)));
+            }
+
+            if (named.Count == 0)
+            {
+                Status("Nothing imported: every setup of the file was skipped.");
+                return;
             }
 
             // Read only now, after the last dialog: the game may have saved while
@@ -392,7 +422,8 @@ public partial class SetupTab : UserControl
                 : "";
             string what = named.Count == 1 ? "Setup" : $"{named.Count} setups";
             string cars = string.Join(", ", named.Select(n => n.Car).Distinct());
-            Status($"✓  {what} imported for {cars}.{bakInfo}");
+            string left = skipped == 0 ? "" : $" ({skipped} skipped)";
+            Status($"✓  {what} imported for {cars}{left}.{bakInfo}");
         }
         catch (Exception ex) { Dialogs.Error(ex.Message, "Import error"); }
     }
@@ -688,7 +719,11 @@ public partial class SetupTab : UserControl
     /// <summary>
     /// Minimal WPF input dialog.  Returns trimmed text, or null if cancelled.
     /// </summary>
-    private string? ShowInputDialog(string prompt, string title, string defaultValue)
+    /// <summary>
+    /// The name typed, trimmed (possibly empty), or null when the dialog was
+    /// left through <paramref name="cancelText"/> or closed.
+    /// </summary>
+    private string? ShowInputDialog(string prompt, string title, string defaultValue, string cancelText = "Cancel")
     {
         var window = Window.GetWindow(this)!;
 
@@ -742,7 +777,7 @@ public partial class SetupTab : UserControl
             IsDefault = true,
             Margin = new Thickness(0, 0, 6, 0),
         };
-        var cancel = new Button { Content = "Cancel", Width = 74, IsCancel = true };
+        var cancel = new Button { Content = cancelText, Width = 74, IsCancel = true };
 
         ok.Click += (_, _) => { result = tb.Text.Trim(); win.DialogResult = true; };
         cancel.Click += (_, _) => { win.DialogResult = false; };

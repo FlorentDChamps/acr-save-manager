@@ -61,10 +61,11 @@ Ctrl+click and Shift+click select several setups: **View / compare**,
   them all, named `[{Car}_]{n}_setups_{Timestamp}.json` by default.
 - **Import** a `.setup` file into the current save, or a `.json` in that format,
   whichever of the two tools wrote it, with a warning when it comes from
-  another game release. A `.json` holding several setups adds them all in one
-  go. The setup name is always asked for (pre-filled with the
+  another game release. A `.json` holding several setups adds them in one
+  write. The setup name is always asked for (pre-filled with the
   original, auto-incremented on collision), so an imported setup never silently
-  replaces one of yours.
+  replaces one of yours; for a file of several, **Skip** leaves that setup out
+  and goes on with the next, so you can take only some of them.
 - **Rename** a setup and **Remove** the selected ones, in place, inside the save
   file. Several setups are removed in one write, under one backup.
 - **Backup / Restore** the save file, and **Open folder** to reach it in Explorer.

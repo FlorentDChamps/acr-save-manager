@@ -66,9 +66,11 @@ Ctrl+clic et Maj+clic sélectionnent plusieurs setups : **View / compare**,
 - **Import** d'un fichier `.setup` dans la sauvegarde courante, ou d'un `.json` à
   ce format, qu'il vienne de l'un ou l'autre outil, avec un avertissement
   s'il vient d'une autre version du jeu. Un `.json` contenant plusieurs setups
-  les ajoute tous en une fois. Le nom du setup est toujours demandé
+  les ajoute en une seule écriture. Le nom du setup est toujours demandé
   (pré-rempli avec l'original, incrémenté automatiquement en cas de collision) : un
-  setup importé ne remplace jamais un des vôtres en silence.
+  setup importé ne remplace jamais un des vôtres en silence. Pour un fichier qui
+  en contient plusieurs, **Skip** écarte ce setup et passe au suivant : vous
+  pouvez n'en prendre que certains.
 - **Rename** d'un setup et **Remove** des setups sélectionnés, sur place, dans
   le fichier. Plusieurs setups sont retirés en une seule écriture, avec un seul
   backup.
