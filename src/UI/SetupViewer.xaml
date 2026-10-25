@@ -1,0 +1,212 @@
+<Window x:Class="ACRSaveManager.UI.SetupViewer"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="Setup" Height="680" Width="560" MinHeight="320" MinWidth="420"
+        WindowStyle="None" ResizeMode="CanResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Brush.Window}" Foreground="{DynamicResource Brush.Text}"
+        FontFamily="Segoe UI" FontSize="13">
+  <!-- Styles and brushes are the main window's, merged in before this loads:
+       DynamicResource, so a theme switch repaints this window too. -->
+  <shell:WindowChrome.WindowChrome>
+    <shell:WindowChrome CaptionHeight="36" ResizeBorderThickness="6" CornerRadius="0"
+                       GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+  </shell:WindowChrome.WindowChrome>
+
+  <Border BorderBrush="{DynamicResource Brush.WindowOutline}" BorderThickness="1">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="36"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <Border Grid.Row="0" Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
+            BorderThickness="0,0,0,1">
+      <Grid>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,140,0">
+          <Image Source="pack://application:,,,/assets/icon.ico" Width="20" Height="20"/>
+          <TextBlock Text="{Binding Title, RelativeSource={RelativeSource AncestorType=Window}}"
+                     VerticalAlignment="Center" Margin="8,0,0,0" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+          <Button x:Name="MaximizeBtn" Style="{DynamicResource CaptionButton}" Content="&#xE922;" FontFamily="Segoe MDL2 Assets" Width="44" Height="35"
+                  shell:WindowChrome.IsHitTestVisibleInChrome="True" Click="MaximizeBtn_Click" ToolTip="Maximize / restore"/>
+          <Button Style="{DynamicResource CloseCaptionButton}" Content="&#xE8BB;" FontFamily="Segoe MDL2 Assets" Width="44" Height="35"
+                  shell:WindowChrome.IsHitTestVisibleInChrome="True" Click="CloseBtn_Click" ToolTip="Close"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <DockPanel Grid.Row="1" Margin="12,10,12,8">
+      <CheckBox x:Name="ChkDiffOnly" DockPanel.Dock="Right" Content="Differences only"
+                VerticalAlignment="Center" Checked="ChkDiffOnly_Changed" Unchecked="ChkDiffOnly_Changed"
+                ToolTip="Hide the parameters set the same in every setup."/>
+      <TextBlock x:Name="TxtSummary" VerticalAlignment="Center" Foreground="{DynamicResource Brush.Muted}"
+                 TextTrimming="CharacterEllipsis"/>
+    </DockPanel>
+
+    <DataGrid x:Name="GridParams" Grid.Row="2" Margin="12,0,12,12"
+              AutoGenerateColumns="False" IsReadOnly="True"
+              SelectionMode="Extended" SelectionUnit="FullRow"
+              CanUserResizeRows="False" CanUserSortColumns="False" CanUserReorderColumns="False"
+              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+              ClipboardCopyMode="IncludeHeader"
+              RowHeight="NaN" MinRowHeight="26"
+              VirtualizingPanel.IsVirtualizingWhenGrouping="True"
+              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <DataGrid.Resources>
+        <!-- a value that differs: its cells stand out, not the label's. Set on
+             the setup columns only, from the code. -->
+        <Style x:Key="SetupCell" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding HighlightsRow}" Value="True">
+              <Setter Property="Background" Value="{DynamicResource Brush.Diff}"/>
+              <Setter Property="FontWeight" Value="SemiBold"/>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+
+        <!-- A setup's cell, chosen by the row's kind (CellTemplates). TrimmedText
+             is set from the code: its tooltip opens only on a text cut short. -->
+        <DataTemplate x:Key="ValueCell">
+          <TextBlock Text="{Binding Text}" Style="{DynamicResource TrimmedText}" VerticalAlignment="Center"/>
+        </DataTemplate>
+
+        <!-- one wheel's or one axle's value, marked when the setups differ on it -->
+        <DataTemplate x:Key="Part">
+          <!-- the padding gives the mark some room; the margin takes it back, so
+               the text lines up with a one-value cell's -->
+          <Border x:Name="bd" Padding="4,1" Margin="-4,1,0,1" CornerRadius="3">
+            <TextBlock x:Name="tx" Text="{Binding Text}" Style="{DynamicResource TrimmedText}"/>
+          </Border>
+          <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding Differs}" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.Diff}"/>
+              <Setter TargetName="tx" Property="FontWeight" Value="SemiBold"/>
+            </DataTrigger>
+          </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- the car seen from above: front on top, its left on the left. An axle
+             whose wheels are paired shows one value across the line. -->
+        <DataTemplate x:Key="CornersCell">
+          <Grid Margin="0,2">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition/>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition/>
+              <RowDefinition/>
+            </Grid.RowDefinitions>
+            <ContentPresenter x:Name="fl" Grid.Row="0" Grid.Column="0" Content="{Binding Parts[0]}" ContentTemplate="{StaticResource Part}"/>
+            <ContentPresenter x:Name="fr" Grid.Row="0" Grid.Column="2" Content="{Binding Parts[1]}" ContentTemplate="{StaticResource Part}"/>
+            <ContentPresenter x:Name="rl" Grid.Row="1" Grid.Column="0" Content="{Binding Parts[2]}" ContentTemplate="{StaticResource Part}"/>
+            <ContentPresenter x:Name="rr" Grid.Row="1" Grid.Column="2" Content="{Binding Parts[3]}" ContentTemplate="{StaticResource Part}"/>
+            <Rectangle x:Name="frontSplit" Grid.Row="0" Grid.Column="1" Width="1" Margin="3,2,3,0" Fill="{DynamicResource Brush.Border}"/>
+            <Rectangle x:Name="rearSplit" Grid.Row="1" Grid.Column="1" Width="1" Margin="3,0,3,2" Fill="{DynamicResource Brush.Border}"/>
+          </Grid>
+          <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding FrontPaired}" Value="True">
+              <Setter TargetName="fl" Property="Grid.ColumnSpan" Value="3"/>
+              <Setter TargetName="fr" Property="Visibility" Value="Collapsed"/>
+              <Setter TargetName="frontSplit" Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding RearPaired}" Value="True">
+              <Setter TargetName="rl" Property="Grid.ColumnSpan" Value="3"/>
+              <Setter TargetName="rr" Property="Visibility" Value="Collapsed"/>
+              <Setter TargetName="rearSplit" Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+          </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <DataTemplate x:Key="AxlesCell">
+          <StackPanel Margin="0,2">
+            <ContentPresenter Content="{Binding Parts[0]}" ContentTemplate="{StaticResource Part}"/>
+            <ContentPresenter Content="{Binding Parts[1]}" ContentTemplate="{StaticResource Part}"/>
+          </StackPanel>
+        </DataTemplate>
+      </DataGrid.Resources>
+      <DataGrid.GroupStyle>
+        <!-- each section folds: a header that toggles, its rows below. The group
+             is named by a SectionState, which keeps the state across a filter
+             change, when the groups are rebuilt. -->
+        <GroupStyle>
+          <GroupStyle.ContainerStyle>
+            <Style TargetType="GroupItem">
+              <Setter Property="Template">
+                <Setter.Value>
+                  <ControlTemplate TargetType="GroupItem">
+                    <StackPanel>
+                      <ToggleButton IsChecked="{Binding Name.IsExpanded, Mode=TwoWay}" Cursor="Hand"
+                                    Focusable="False" ToolTip="Fold or unfold this section">
+                        <ToggleButton.Template>
+                          <ControlTemplate TargetType="ToggleButton">
+                            <Border x:Name="bd" Background="{DynamicResource Brush.Window}"
+                                    BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,0,1"
+                                    Padding="8,7,8,5">
+                              <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="chevron" Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" FontSize="10"
+                                           VerticalAlignment="Center" Margin="0,0,8,0"
+                                           Foreground="{DynamicResource Brush.Muted}"/>
+                                <TextBlock Text="{Binding Name.Title}" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource Brush.Muted}"/>
+                                <TextBlock Text="{Binding ItemCount}" Margin="8,0,0,0"
+                                           Foreground="{DynamicResource Brush.Faint}"/>
+                              </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                              <Trigger Property="IsChecked" Value="False">
+                                <Setter TargetName="chevron" Property="Text" Value="&#xE76C;"/>
+                              </Trigger>
+                              <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.ButtonHover}"/>
+                              </Trigger>
+                            </ControlTemplate.Triggers>
+                          </ControlTemplate>
+                        </ToggleButton.Template>
+                      </ToggleButton>
+                      <ItemsPresenter x:Name="rows"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                      <DataTrigger Binding="{Binding Name.IsExpanded}" Value="False">
+                        <Setter TargetName="rows" Property="Visibility" Value="Collapsed"/>
+                      </DataTrigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Setter.Value>
+              </Setter>
+            </Style>
+          </GroupStyle.ContainerStyle>
+        </GroupStyle>
+        <GroupStyle>
+          <GroupStyle.ContainerStyle>
+            <Style TargetType="GroupItem">
+              <Setter Property="Template">
+                <Setter.Value>
+                  <ControlTemplate TargetType="GroupItem">
+                    <StackPanel>
+                      <TextBlock x:Name="caption" Text="{Binding Name}" Margin="26,6,8,2" FontSize="12"
+                                 FontWeight="SemiBold" Foreground="{DynamicResource Brush.Faint}"/>
+                      <ItemsPresenter/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                      <DataTrigger Binding="{Binding Name}" Value="">
+                        <Setter TargetName="caption" Property="Visibility" Value="Collapsed"/>
+                      </DataTrigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Setter.Value>
+              </Setter>
+            </Style>
+          </GroupStyle.ContainerStyle>
+        </GroupStyle>
+      </DataGrid.GroupStyle>
+    </DataGrid>
+  </Grid>
+  </Border>
+</Window>

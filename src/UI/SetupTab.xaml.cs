@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using ACRSaveManager.Services;
 using Microsoft.Win32;
@@ -115,6 +116,59 @@ public partial class SetupTab : UserControl
             Status(done);
         }
         catch (Exception ex) { Dialogs.Error(ex.Message, "Restore error"); }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Setup tab — View / Compare
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private void BtnViewSetup_Click(object sender, RoutedEventArgs e) => ViewSelected();
+
+    private void GridSetups_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        // on a row: not on the column headers or the scroll bar
+        if (e.OriginalSource is DependencyObject source &&
+            ItemsControl.ContainerFromElement(GridSetups, source) is DataGridRow)
+        {
+            ViewSelected();
+        }
+    }
+
+    /// <summary>
+    /// Opens the viewer on the selected setup, or side by side on the selected
+    /// setups — of one car only: two cars share too few parameters to compare.
+    /// </summary>
+    private void ViewSelected()
+    {
+        var selected = SelectedSetups();
+        if (selected.Count == 0)
+        {
+            Dialogs.Warn("Select a setup from the list.", "Selection required");
+            return;
+        }
+        if (selected.Any(s => !SameCar(s.CarName, selected[0].CarName)))
+        {
+            var cars = selected.Select(s => s.CarName).Distinct(StringComparer.OrdinalIgnoreCase)
+                               .Select(SetupShareJson.FriendlyName);
+            Dialogs.Warn(
+                "Only setups of a single car compare side by side. The selection holds:\n\n    " +
+                string.Join("\n    ", cars),
+                "Several cars selected");
+            return;
+        }
+        if (!ValidateSetupFile()) return;
+
+        try
+        {
+            byte[]? data = ReadSaveIfListIsCurrent();
+            if (data is null) return;
+
+            var setups = selected
+                .Select(s => CarSetupsParser.ReadEntryData(CarSetupsParser.ExtractEntry(data, s)))
+                .ToList();
+            SetupViewer.Show(Window.GetWindow(this), setups);
+        }
+        catch (Exception ex) { Dialogs.Error(ex.Message, "View error"); }
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -456,7 +510,7 @@ public partial class SetupTab : UserControl
     {
         if (GridSetups.SelectedItems.Count > 1)
         {
-            Dialogs.Warn("Select a single setup from the list: only Export and Remove take several.", "Selection required");
+            Dialogs.Warn("Select a single setup from the list: only View, Export and Remove take several.", "Selection required");
             return null;
         }
         if (GridSetups.SelectedItem is SetupEntry entry) return entry;

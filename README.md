@@ -32,10 +32,23 @@ timestamped backups and one-click restore.
 
 ![Setup tab: every setup of the save, with its car, name, author, track, game build and date](docs/screenshots/setup.png)
 
+The setups save holds every setup saved in the game, grouped by car. Each one
+carries its name, its author, the stage it was made on, the surfaces, weathers
+and game modes it is kept for, the game build that wrote it and its date — then
+every parameter of the car, from the gear set to the tyre pressures. The game
+shows them only in its own menus; here they become a list you can read, compare,
+share and tidy up.
+
+Ctrl+click and Shift+click select several setups: **View / compare**,
+**Export** and **Remove** take them all, **Rename** one at a time.
+
 - **Auto-load** — `%LOCALAPPDATA%\acr\Saved\SaveGames\CarSetupsDataSaveSlot.sav` is
   opened at startup; any other `.sav` can be picked instead.
 - **Setup list** — car, name, author, track, the game build that wrote the entry
   and its date. One save usually mixes several builds.
+- **View / compare** every parameter of the selected setup, or of several
+  setups of one car side by side — see
+  [Viewing and comparing setups](#viewing-and-comparing-setups).
 - **Export** the selected setup to a binary `.setup` file plus a readable `.json`
   companion, named
   `{Car}_{Track}[_{Weather}]_{Name}[_{Author}]_{Timestamp}.setup` by default — that pair
@@ -52,9 +65,41 @@ timestamped backups and one-click restore.
   go. The setup name is always asked for (pre-filled with the
   original, auto-incremented on collision), so an imported setup never silently
   replaces one of yours.
-- **Rename** and **Remove** the selected setup, in place, inside the save file.
-  Several selected setups are removed in one write, under one backup.
+- **Rename** a setup and **Remove** the selected ones, in place, inside the save
+  file. Several setups are removed in one write, under one backup.
 - **Backup / Restore** the save file, and **Open folder** to reach it in Explorer.
+
+#### Viewing and comparing setups
+
+![Three setups of one car compared side by side: wheel values laid out as the car seen from above, the values that differ highlighted](docs/screenshots/compare.png)
+
+**View / compare**, or a double-click on a setup, opens a window of its own: the
+main one stays free, and nothing is written. It shows the setups as they were
+when it opened.
+
+- **Info**, folded at first, holds the setup's name, author, stage, surface,
+  weather, game mode, build and date.
+- The parameters follow, grouped by part of the car: Gearbox, Suspensions,
+  Dampers, Axles, Differentials, Brakes, Wheels, Other. A click on a group's
+  header folds it.
+- Values read in clear: `36.000000` is `36`, `(Gears:27//8)` is `27:8 (3.375)`
+  — the teeth, then the ratio —, `(LSDRampAngles:45_60)` is `45° / 60°`, and a
+  gear set is its number in the game (`Set0` is 1).
+- A parameter set per wheel takes one row, laid out as the car seen from above:
+  front on top, left on the left. It shows no more detail than needed: an axle
+  whose left and right match shows one value, four matching wheels a single
+  one. A parameter set per axle shows front over rear, and the differentials
+  split into front, rear and centre.
+- Select several setups of one car to compare them: one column each, the values
+  they set apart highlighted — on a row of wheels, only the wheels that differ —
+  and counted at the top. **Differences only** hides the rest. Setups of
+  different cars share too few parameters, and are refused.
+- A value too long for its column ends in "…" and shows whole under the mouse;
+  Ctrl+C copies the selected rows.
+
+The labels are the save's own keys, spaced out — `Wheels.FrontLeft.TyrePressure`
+is *Tyre Pressure* on the Wheels row: the names and units the game shows on
+screen are not stored in the file.
 
 ### Race tab (`PlayerDataSaveSlot.sav`)
 
@@ -130,7 +175,7 @@ theme toggle until you update.
 |---------------|---------|
 | `.sav`        | Unreal Engine 5 GVAS binary save file (the game's own) |
 | `.setup`      | Raw binary blob of one setup entry from `CarSetupsDataSaveSlot.sav` |
-| `.json`       | JSON companion exported next to a `.setup`, same base name, in the format of [*AC Rally car setup manager*](https://www.overtake.gg/downloads/ac-rally-car-setup-manager-by-sheldor.85944/) by Sheldor: the parameters in readable form, their hash, and the entry in base64. It can be imported like a `.setup` |
+| `.json`       | JSON companion exported next to a `.setup`, same base name, in the format of [*AC Rally car setup manager*](https://www.overtake.gg/downloads/ac-rally-car-setup-manager-by-sheldor.85944/) by Sheldor: the parameters in readable form, their hash, and the entry in base64. Exported alone when several setups are, holding them all. It can be imported like a `.setup` |
 | `.race`       | Every event config of `PlayerDataSaveSlot.sav` and the stage, car and weather selection past them, behind a 16-byte provenance header |
 | `.bak`        | Timestamped backup copy of a `.sav` file |
 
@@ -203,7 +248,8 @@ progress: never commit them.
    the default location. Keep the exe in a folder you can write to: the theme, the
    window layout and the last files opened are saved to an `ACRSaveManager.config`
    next to it, and extracted `.race` files go to that folder by default.
-3. *Setup* tab: pick a setup, **Export selected setup** to share it, or
+3. *Setup* tab: pick a setup and **View / compare** to read it — or select
+   several to compare them —, **Export selected setup** to share it, or
    **Select a setup file** → **Import to sav** to add one you received.
 4. *Race* tab: **Read & extract** to save the race configurations of every mode,
    stage, car and weather included; **Select…** a `.race` file, tick the parts to
@@ -245,6 +291,7 @@ If you would rather not trust a prebuilt binary at all, clone the repo and run
 | Element | Status |
 |---|---|
 | Setup list / export / import / rename / remove | ✅ parsed and rewritten in place |
+| Setup viewer & comparison | 🟡 every parameter, by its key in the save: the game's own labels and units are not stored there |
 | Race configurations extract & write | ✅ boundaries walked from the EventConfig structure, game modes matched by name, save size field fixed up |
 | Player save JSON export | ✅ the whole file; unknown sections are reported instead of aborting the export |
 | Backups | ✅ timestamped `.bak` + restore; automatic on Rename, Remove and Write, optional on Import and Restore; the 10 newest kept per save |
@@ -263,9 +310,10 @@ src/
   Services/  save file parsing and mutation: GVAS/EventConfig walker, the
              event list and its stage selection, .race file container,
              CarSetups setup table (list, export, import, rename, remove) and
-             its setup-sharing JSON, whole-save JSON exporter
-  UI/        WPF window — SetupTab and RaceTab controls, file pickers, dialogs,
-             backups, atomic save writes, UI settings file
+             its setup-sharing JSON, the rows of the setup viewer, backup
+             folder and rotation, whole-save JSON exporter
+  UI/        WPF window — SetupTab and RaceTab controls, setup viewer, file
+             pickers, dialogs, backups, atomic save writes, UI settings file
   Updates/   startup release check (GitHub API)
   App        entry point and last-chance error handler
   AppInfo    version, read from the assembly metadata

@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Media;
 using ACRSaveManager.Updates;
 using Microsoft.Win32;
@@ -28,9 +26,9 @@ public partial class MainWindow : Window
         // set before the window exists, the state raises no StateChanged
         SyncMaximizeGlyph();
         // saved theme if any, else follow the OS light/dark setting on first run
-        Backups.Keep = _settings.BackupsKept;
-
         ApplyTheme(_settings.HasTheme ? _settings.Dark : OsPrefersDark());
+
+        Backups.Keep = _settings.BackupsKept;
 
         // Race tab — the save used last, else the game's own
         TabRace.StatusChanged += SetStatus;
@@ -127,6 +125,7 @@ public partial class MainWindow : Window
         ["Brush.ScrollThumbHover"] = C(0xAE, 0xB6, 0xBF),
         ["Brush.RowAlt"] = C(0xF6, 0xF8, 0xFA),
         ["Brush.Selection"] = C(0xDD, 0xE7, 0xF2),
+        ["Brush.Diff"] = C(0xFF, 0xF4, 0xCE),       // setup viewer: values that differ
     };
 
     private static readonly Dictionary<string, Color> DarkPalette = new()
@@ -154,6 +153,7 @@ public partial class MainWindow : Window
         ["Brush.ScrollThumbHover"] = C(0x4C, 0x55, 0x61),
         ["Brush.RowAlt"] = C(0x1B, 0x21, 0x2A),
         ["Brush.Selection"] = C(0x2C, 0x35, 0x42),
+        ["Brush.Diff"] = C(0x5C, 0x45, 0x0E),       // amber, bright enough to see on the card
     };
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -233,69 +233,7 @@ public partial class MainWindow : Window
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
-        if (PresentationSource.FromVisual(this) is HwndSource source)
-            source.AddHook(WindowProc);
-    }
-
-    /// <summary>
-    /// Without this, a WindowChrome window maximises over the taskbar: clamp the
-    /// maximised size and position to the monitor's work area. The message is
-    /// left unhandled so WPF's own processing still runs after this: it fills in
-    /// the minimum tracking size from MinWidth / MinHeight, and marking it handled
-    /// let the window shrink to any size, its content clipped.
-    /// </summary>
-    private IntPtr WindowProc(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
-    {
-        const int WmGetMinMaxInfo = 0x0024;
-        if (message != WmGetMinMaxInfo) return IntPtr.Zero;
-
-        nint monitor = MonitorFromWindow(hwnd, 2);
-        if (monitor == IntPtr.Zero) return IntPtr.Zero;
-        var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
-        if (!GetMonitorInfo(monitor, ref info)) return IntPtr.Zero;
-
-        var minMax = Marshal.PtrToStructure<MinMaxInfo>(lParam);
-        minMax.MaxPosition.X = info.WorkArea.Left - info.MonitorArea.Left;
-        minMax.MaxPosition.Y = info.WorkArea.Top - info.MonitorArea.Top;
-        minMax.MaxSize.X = info.WorkArea.Right - info.WorkArea.Left;
-        minMax.MaxSize.Y = info.WorkArea.Bottom - info.WorkArea.Top;
-        Marshal.StructureToPtr(minMax, lParam, true);
-        return IntPtr.Zero;
-    }
-
-    // Source-generated P/Invoke (SYSLIB1054): the marshalling stub is written at
-    // compile time instead of at startup. Both signatures are blittable — handles,
-    // ints and a struct of ints — so nothing is marshalled but the BOOL return.
-    // "private" is spelled out against the habit of the rest of the file: a
-    // partial method that returns something has to carry an accessibility.
-    [LibraryImport("user32.dll")]
-    private static partial IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
-
-    // The entry point is spelled out: user32 exports GetMonitorInfoA and
-    // GetMonitorInfoW, never a bare GetMonitorInfo. DllImport with CharSet.Auto
-    // used to try the suffixes; LibraryImport takes the name as given.
-    [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct PointInt { public int X, Y; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MinMaxInfo
-    {
-        public PointInt Reserved, MaxSize, MaxPosition, MinTrackSize, MaxTrackSize;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RectInt { public int Left, Top, Right, Bottom; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MonitorInfo
-    {
-        public int Size;
-        public RectInt MonitorArea, WorkArea;
-        public uint Flags;
+        WorkAreaMaximize.Attach(this);
     }
 
     // ══════════════════════════════════════════════════════════════════════════

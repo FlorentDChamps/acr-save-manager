@@ -9,6 +9,9 @@
         <GroupBox DockPanel.Dock="Bottom" Header="Import / Export" Margin="0,10,0,0">
           <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <Button Content="View / compare" Style="{DynamicResource RowButton}"
+                      ToolTip="Shows every parameter of the selected setup. Several of one car, selected with Ctrl+click and Shift+click: side by side, the differences highlighted. Double-click a setup to view it."
+                      Click="BtnViewSetup_Click"/>
               <Button Content="Export selected setup" Style="{DynamicResource RowButton}"
                       ToolTip="One setup: a .setup and its .json. Several, selected with Ctrl+click and Shift+click: a single .json holding them all."
                       Click="BtnExportSetup_Click"/>
@@ -67,7 +70,8 @@
                     VerticalScrollBarVisibility="Auto"
                     HorizontalScrollBarVisibility="Disabled"
                     GridLinesVisibility="Horizontal"
-                    HeadersVisibility="Column">
+                    HeadersVisibility="Column"
+                    MouseDoubleClick="GridSetups_MouseDoubleClick">
             <DataGrid.Columns>
               <DataGridTextColumn Header="Car"    Binding="{Binding CarName}"   Width="3*"/>
               <DataGridTextColumn Header="Name"   Binding="{Binding SetupName}" Width="3*"/>

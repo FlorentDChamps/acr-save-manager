@@ -47,6 +47,7 @@
     <!-- grid-only keys (ACR Live Timing has no data grid) -->
     <SolidColorBrush x:Key="Brush.RowAlt"        Color="#F6F8FA"/>
     <SolidColorBrush x:Key="Brush.Selection"     Color="#DDE7F2"/>
+    <SolidColorBrush x:Key="Brush.Diff"          Color="#FFF4CE"/>
 
     <!-- flat themed scrollbar: thin, rounded thumb, no arrow buttons -->
     <Style x:Key="ScrollThumbStyle" TargetType="Thumb">
