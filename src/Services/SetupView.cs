@@ -15,7 +15,11 @@ public enum SetupViewKind
 }
 
 /// <summary>One wheel's or one axle's value, and whether the setups differ on it.</summary>
-public sealed record SetupViewPart(string Text, bool Differs);
+public sealed record SetupViewPart(string Text, bool Differs)
+{
+    /// <summary>The colour of this value among the setups': see <see cref="SetupView.ShadesOf"/>.</summary>
+    public int Shade { get; init; } = SetupView.NoShade;
+}
 
 /// <summary>
 /// What a row holds for one setup: <see cref="Text"/>, in one line, and for
@@ -31,6 +35,12 @@ public sealed record SetupViewCell(string Text, IReadOnlyList<SetupViewPart> Par
 
     /// <summary>The same for the rear wheels, the third part and the fourth.</summary>
     public bool RearPaired { get; init; }
+
+    /// <summary>
+    /// In a row of one value, the colour of this one among the setups': see
+    /// <see cref="SetupView.ShadesOf"/>. A row of parts colours its parts instead.
+    /// </summary>
+    public int Shade { get; init; } = SetupView.NoShade;
 }
 
 /// <summary>
@@ -53,9 +63,6 @@ public sealed record SetupViewRow(string Section, string Label, IReadOnlyList<Se
 
     /// <summary>The setup's own name, kept even when only differences are shown.</summary>
     public bool IsName => Section == SetupSection && Label == "Name";
-
-    /// <summary>The whole row stands out; a row of parts marks the parts that differ instead.</summary>
-    public bool HighlightsRow => Differs && Kind == SetupViewKind.Value;
 }
 
 /// <summary>
@@ -67,6 +74,12 @@ public static partial class SetupView
 {
     /// <summary>The value of a parameter one setup lacks and another has.</summary>
     public const string Missing = "—";
+
+    /// <summary>The shade of a value every setup shown shares.</summary>
+    public const int NoShade = -1;
+
+    /// <summary>How many colours the viewer has for the values that differ.</summary>
+    public const int Shades = 6;
 
     /// <summary>
     /// The sections in the order they are shown, by the first part of the keys.
@@ -159,10 +172,34 @@ public static partial class SetupView
     private static SetupViewRow Info(string label, IReadOnlyList<SetupExportData> setups, Func<SetupExportData, string> value)
     {
         var values = setups.Select(value).ToList();
-        return new SetupViewRow(SetupViewRow.SetupSection, label, [.. values.Select(Cell)], Differ(values));
+        return new SetupViewRow(SetupViewRow.SetupSection, label, Cells(values), Differ(values));
     }
 
-    private static SetupViewCell Cell(string text) => new(text, []);
+    // one cell per setup, each value in its colour
+    private static List<SetupViewCell> Cells(List<string> values)
+    {
+        int[] shades = ShadesOf(values);
+        return [.. values.Select((v, i) => new SetupViewCell(v, []) { Shade = shades[i] })];
+    }
+
+    /// <summary>
+    /// The colour of each of <paramref name="values"/>, one per setup: the same
+    /// value has the same one, in the order the values first come in, so that
+    /// among three setups or more it shows which match which. All
+    /// <see cref="NoShade"/> when the setups agree; past <see cref="Shades"/>
+    /// distinct values, the colours come round again.
+    /// </summary>
+    public static int[] ShadesOf(IReadOnlyList<string> values)
+    {
+        if (!Differ([.. values])) return [.. values.Select(_ => NoShade)];
+        var order = new List<string>();
+        return [.. values.Select(v =>
+        {
+            int i = order.IndexOf(v);
+            if (i < 0) { order.Add(v); i = order.Count - 1; }
+            return i % Shades;
+        })];
+    }
 
     private static string ValueOf(SetupExportData setup, string key) =>
         setup.Parameters.TryGetValue(key, out string? v) ? FormatValue(v) : Missing;
@@ -170,7 +207,7 @@ public static partial class SetupView
     private static SetupViewRow Single(string section, string label, string key, IReadOnlyList<SetupExportData> setups)
     {
         var values = setups.Select(s => ValueOf(s, key)).ToList();
-        return new SetupViewRow(section, label, [.. values.Select(Cell)], Differ(values));
+        return new SetupViewRow(section, label, Cells(values), Differ(values));
     }
 
     /// <summary>
@@ -188,17 +225,17 @@ public static partial class SetupView
             if (axles.All(v => v[0] == v[1]))
             {
                 var one = axles.Select(v => v[0]).ToList();
-                return new SetupViewRow(section, label, [.. one.Select(Cell)], Differ(one));
+                return new SetupViewRow(section, label, Cells(one), Differ(one));
             }
             return PerAxle(section, label, axles);
         }
 
         bool[] differs = PartsDiffer(values);
-        var cells = values.Select(v => new SetupViewCell(
+        var cells = values.Select((v, i) => new SetupViewCell(
             string.Join(" · ",
                 front ? $"F {v[0]}" : $"FL {v[0]} · FR {v[1]}",
                 rear ? $"R {v[2]}" : $"RL {v[2]} · RR {v[3]}"),
-            [.. v.Select((x, p) => new SetupViewPart(x, differs[p]))])
+            Parts(values, i, differs))
         {
             FrontPaired = front,
             RearPaired = rear,
@@ -210,11 +247,16 @@ public static partial class SetupView
     private static SetupViewRow PerAxle(string section, string label, List<string[]> values)
     {
         bool[] differs = PartsDiffer(values);
-        var cells = values.Select(v => new SetupViewCell(
-            $"F {v[0]} · R {v[1]}",
-            [.. v.Select((x, p) => new SetupViewPart(x, differs[p]))]));
+        var cells = values.Select((v, i) => new SetupViewCell($"F {v[0]} · R {v[1]}", Parts(values, i, differs)));
         return new SetupViewRow(section, label, [.. cells], differs.Any(d => d)) { Kind = SetupViewKind.Axles };
     }
+
+    // setup i's parts, each in its colour among the setups' values at its place
+    private static List<SetupViewPart> Parts(List<string[]> values, int i, bool[] differs) =>
+        [.. values[i].Select((x, p) => new SetupViewPart(x, differs[p])
+        {
+            Shade = ShadesOf([.. values.Select(v => v[p])])[i],
+        })];
 
     // for each position, whether the setups set it apart
     private static bool[] PartsDiffer(List<string[]> values) =>

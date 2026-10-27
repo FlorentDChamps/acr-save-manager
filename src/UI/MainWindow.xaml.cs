@@ -129,7 +129,12 @@ public partial class MainWindow : Window
         ["Brush.ScrollThumbHover"] = C(0xAE, 0xB6, 0xBF),
         ["Brush.RowAlt"] = C(0xF6, 0xF8, 0xFA),
         ["Brush.Selection"] = C(0xDD, 0xE7, 0xF2),
-        ["Brush.Diff"] = C(0xFF, 0xF4, 0xCE),       // setup viewer: values that differ
+        ["Brush.Diff0"] = C(0xFF, 0xF4, 0xCE),       // setup viewer: values that differ, one colour each (amber first)
+        ["Brush.Diff1"] = C(0xDB, 0xEA, 0xFE),       // blue
+        ["Brush.Diff2"] = C(0xD9, 0xF5, 0xDF),       // green
+        ["Brush.Diff3"] = C(0xFC, 0xE4, 0xEF),       // pink
+        ["Brush.Diff4"] = C(0xEA, 0xE4, 0xFB),       // violet
+        ["Brush.Diff5"] = C(0xD2, 0xF4, 0xF0),       // teal
     };
 
     private static readonly Dictionary<string, Color> DarkPalette = new()
@@ -157,7 +162,12 @@ public partial class MainWindow : Window
         ["Brush.ScrollThumbHover"] = C(0x4C, 0x55, 0x61),
         ["Brush.RowAlt"] = C(0x1B, 0x21, 0x2A),
         ["Brush.Selection"] = C(0x2C, 0x35, 0x42),
-        ["Brush.Diff"] = C(0x5C, 0x45, 0x0E),       // amber, bright enough to see on the card
+        ["Brush.Diff0"] = C(0x5C, 0x45, 0x0E),       // setup viewer: values that differ, one colour each (amber first)
+        ["Brush.Diff1"] = C(0x1E, 0x3A, 0x5F),       // blue
+        ["Brush.Diff2"] = C(0x1F, 0x4A, 0x2C),       // green
+        ["Brush.Diff3"] = C(0x5A, 0x21, 0x40),       // pink
+        ["Brush.Diff4"] = C(0x3B, 0x2E, 0x66),       // violet
+        ["Brush.Diff5"] = C(0x11, 0x4A, 0x45),       // teal
     };
 
     // ══════════════════════════════════════════════════════════════════════════

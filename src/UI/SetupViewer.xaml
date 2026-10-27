@@ -58,13 +58,38 @@
               VirtualizingPanel.IsVirtualizingWhenGrouping="True"
               HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
       <DataGrid.Resources>
-        <!-- a value that differs: its cells stand out, not the label's. Set on
-             the setup columns only, from the code. -->
-        <Style x:Key="SetupCell" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+        <!-- A value the setups differ on, in the colour of that value: the
+             setups that share it share the colour, so among three or more it
+             shows which match which. The padding gives the colour some room;
+             the margin takes it back, so the text lines up with the others. -->
+        <Style x:Key="Shaded" TargetType="Border">
+          <Setter Property="Padding" Value="4,1"/>
+          <Setter Property="Margin" Value="-4,1,0,1"/>
+          <Setter Property="CornerRadius" Value="3"/>
           <Style.Triggers>
-            <DataTrigger Binding="{Binding HighlightsRow}" Value="True">
-              <Setter Property="Background" Value="{DynamicResource Brush.Diff}"/>
-              <Setter Property="FontWeight" Value="SemiBold"/>
+            <DataTrigger Binding="{Binding Shade}" Value="0">
+              <Setter Property="Background" Value="{DynamicResource Brush.Diff0}"/>
+              <Setter Property="TextElement.FontWeight" Value="SemiBold"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Shade}" Value="1">
+              <Setter Property="Background" Value="{DynamicResource Brush.Diff1}"/>
+              <Setter Property="TextElement.FontWeight" Value="SemiBold"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Shade}" Value="2">
+              <Setter Property="Background" Value="{DynamicResource Brush.Diff2}"/>
+              <Setter Property="TextElement.FontWeight" Value="SemiBold"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Shade}" Value="3">
+              <Setter Property="Background" Value="{DynamicResource Brush.Diff3}"/>
+              <Setter Property="TextElement.FontWeight" Value="SemiBold"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Shade}" Value="4">
+              <Setter Property="Background" Value="{DynamicResource Brush.Diff4}"/>
+              <Setter Property="TextElement.FontWeight" Value="SemiBold"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Shade}" Value="5">
+              <Setter Property="Background" Value="{DynamicResource Brush.Diff5}"/>
+              <Setter Property="TextElement.FontWeight" Value="SemiBold"/>
             </DataTrigger>
           </Style.Triggers>
         </Style>
@@ -72,22 +97,16 @@
         <!-- A setup's cell, chosen by the row's kind (CellTemplates). TrimmedText
              is set from the code: its tooltip opens only on a text cut short. -->
         <DataTemplate x:Key="ValueCell">
-          <TextBlock Text="{Binding Text}" Style="{DynamicResource TrimmedText}" VerticalAlignment="Center"/>
+          <Border Style="{StaticResource Shaded}" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Text}" Style="{DynamicResource TrimmedText}"/>
+          </Border>
         </DataTemplate>
 
-        <!-- one wheel's or one axle's value, marked when the setups differ on it -->
+        <!-- one wheel's or one axle's value -->
         <DataTemplate x:Key="Part">
-          <!-- the padding gives the mark some room; the margin takes it back, so
-               the text lines up with a one-value cell's -->
-          <Border x:Name="bd" Padding="4,1" Margin="-4,1,0,1" CornerRadius="3">
-            <TextBlock x:Name="tx" Text="{Binding Text}" Style="{DynamicResource TrimmedText}"/>
+          <Border Style="{StaticResource Shaded}">
+            <TextBlock Text="{Binding Text}" Style="{DynamicResource TrimmedText}"/>
           </Border>
-          <DataTemplate.Triggers>
-            <DataTrigger Binding="{Binding Differs}" Value="True">
-              <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.Diff}"/>
-              <Setter TargetName="tx" Property="FontWeight" Value="SemiBold"/>
-            </DataTrigger>
-          </DataTemplate.Triggers>
         </DataTemplate>
 
         <!-- the car seen from above: front on top, its left on the left. An axle

@@ -138,7 +138,7 @@ public class SetupViewTests
 
         var pressure = rows.Single(r => r.Label == "Tyre Pressure");
         Assert.True(pressure.Differs);
-        Assert.False(pressure.HighlightsRow);    // the parts are marked, not the row
+        Assert.All(pressure.Cells, c => Assert.Equal(SetupView.NoShade, c.Shade));    // the parts are coloured, not the row
         Assert.All(pressure.Cells, c => Assert.Equal([false, true, false, false], c.Parts.Select(p => p.Differs)));
         Assert.Equal(["30", "31", "28", "28"], pressure.Cells[1].Parts.Select(p => p.Text));
 
@@ -164,7 +164,7 @@ public class SetupViewTests
 
         Assert.Equal(SetupViewKind.Value, row.Kind);
         Assert.Equal(["0", "1"], row.Values);
-        Assert.True(row.HighlightsRow);
+        Assert.Equal([0, 1], row.Cells.Select(c => c.Shade));
     }
 
     [Fact]
@@ -234,7 +234,7 @@ public class SetupViewTests
         var abs = rows.Single(r => r.Label == "Electronic · ABS");
         Assert.Equal(["0", "1"], abs.Values);
         Assert.True(abs.Differs);
-        Assert.True(abs.HighlightsRow);
+        Assert.Equal([0, 1], abs.Cells.Select(c => c.Shade));
 
         var name = rows.Single(r => r.IsName);
         Assert.Equal(["Alpha", "Beta"], name.Values);
@@ -257,5 +257,49 @@ public class SetupViewTests
         // a key the first setup lacks still joins its section
         Assert.Equal(["Steering · FFB Player Multiplier", "Electronic · ABS", "Lights · Additional Lights"],
             rows.Skip(8).Select(r => r.Label));
+    }
+
+    [Fact]
+    public void Values_that_differ_take_a_colour_each_and_matching_ones_share_it()
+    {
+        Assert.Equal([0, 1, 0, 2], SetupView.ShadesOf(["30", "31", "30", "28"]));
+        Assert.Equal([SetupView.NoShade, SetupView.NoShade], SetupView.ShadesOf(["1", "1"]));
+        Assert.Equal([SetupView.NoShade], SetupView.ShadesOf(["1"]));
+
+        // past the colours there are, they come round again
+        string[] many = [.. Enumerable.Range(0, SetupView.Shades + 1).Select(i => $"{i}")];
+        Assert.Equal(0, SetupView.ShadesOf(many)[^1]);
+    }
+
+    [Fact]
+    public void Each_value_and_each_wheel_is_shown_in_its_colour()
+    {
+        var rows = SetupView.Rows([
+            Setup("Alpha", [("Other.Electronic.ABS", "0.0"), .. PerWheel("TyrePressure", 30, 30, 28, 28)]),
+            Setup("Beta", [("Other.Electronic.ABS", "1.0"), .. PerWheel("TyrePressure", 30, 31, 28, 28)]),
+            Setup("Gamma", [("Other.Electronic.ABS", "0.0"), .. PerWheel("TyrePressure", 32, 32, 28, 28)]),
+        ]);
+
+        var abs = rows.Single(r => r.Label == "Electronic · ABS");
+        Assert.Equal([0, 1, 0], abs.Cells.Select(c => c.Shade));
+
+        // front left: 30, 30, 32; front right: 30, 31, 32; the rear ones match
+        var pressure = rows.Single(r => r.Label == "Tyre Pressure");
+        Assert.Equal([0, 0, 1], pressure.Cells.Select(c => c.Parts[0].Shade));
+        Assert.Equal([0, 1, 2], pressure.Cells.Select(c => c.Parts[1].Shade));
+        Assert.All(pressure.Cells, c => Assert.Equal(SetupView.NoShade, c.Parts[2].Shade));
+        Assert.All(pressure.Cells, c => Assert.Equal(SetupView.NoShade, c.Shade));
+    }
+
+    [Fact]
+    public void A_single_setup_has_no_colours()
+    {
+        var rows = SetupView.Rows([Setup("Alpha", PerWheel("Camber", -2, -1, -1, -1))]);
+
+        Assert.All(rows, r => Assert.All(r.Cells, c =>
+        {
+            Assert.Equal(SetupView.NoShade, c.Shade);
+            Assert.All(c.Parts, p => Assert.Equal(SetupView.NoShade, p.Shade));
+        }));
     }
 }

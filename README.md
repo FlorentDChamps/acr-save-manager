@@ -113,8 +113,10 @@ when it opened.
   split into front, rear and centre.
 - Select several setups of one car to compare them: one column each, the values
   they set apart highlighted — on a row of wheels, only the wheels that differ —
-  and counted at the top. **Differences only** hides the rest. Setups of
-  different cars share too few parameters, and are refused.
+  and counted at the top. Each value has a colour of its own, which the setups
+  sharing it share: among three setups or more, it shows which match which.
+  **Differences only** hides the rest. Setups of different cars share too few
+  parameters, and are refused.
 - A value too long for its column ends in "…" and shows whole under the mouse;
   Ctrl+C copies the selected rows.
 

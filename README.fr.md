@@ -122,7 +122,9 @@ setups tels qu'ils étaient à son ouverture.
   séparent en avant, arrière et central.
 - Sélectionnez plusieurs setups d'une même voiture pour les comparer : une
   colonne chacun, les valeurs qui diffèrent en surbrillance — sur une ligne de
-  roues, seulement les roues qui diffèrent — et comptées en haut.
+  roues, seulement les roues qui diffèrent — et comptées en haut. Chaque valeur a
+  sa couleur, partagée par les setups qui l'ont : à partir de trois setups, on
+  voit lesquels se rejoignent.
   **Differences only** masque le reste. Des setups de voitures différentes ont
   trop peu de paramètres en commun, et sont refusés.
 - Une valeur trop longue pour sa colonne finit par « … » et s'affiche en entier

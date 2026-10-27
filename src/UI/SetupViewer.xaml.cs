@@ -125,7 +125,6 @@ public partial class SetupViewer : Window
             HeaderTemplate = TrimmedHeader,
             HeaderStyle = HeaderStyle(header),
             CellTemplate = template,
-            CellStyle = (Style)GridParams.FindResource("SetupCell"),
             ClipboardContentBinding = new Binding($"{nameof(SetupViewRow.Values)}[{index}]"),
             MinWidth = 90,
             Width = width,
