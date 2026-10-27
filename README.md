@@ -103,9 +103,9 @@ when it opened.
 - The parameters follow, grouped by part of the car: Gearbox, Suspensions,
   Dampers, Axles, Differentials, Brakes, Wheels, Other. A click on a group's
   header folds it.
-- Values read in clear: `36.000000` is `36`, `(Gears:27//8)` is `27:8 (3.375)`
-  — the teeth, then the ratio —, `(LSDRampAngles:45_60)` is `45° / 60°`, and a
-  gear set is its number in the game (`Set0` is 1).
+- Values read in clear: `36.000000` is `36`, `(LSDRampAngles:45_60)` is
+  `45° / 60°`, a gear set is its number in the game (`Set0` is 1), and
+  `(Gears:27//8)` is `27//8`, as the game shows it.
 - A parameter set per wheel takes one row, laid out as the car seen from above:
   front on top, left on the left. It shows no more detail than needed: an axle
   whose left and right match shows one value, four matching wheels a single

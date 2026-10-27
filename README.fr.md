@@ -111,10 +111,9 @@ setups tels qu'ils étaient à son ouverture.
 - Les paramètres suivent, regroupés par partie de la voiture : Gearbox,
   Suspensions, Dampers, Axles, Differentials, Brakes, Wheels, Other. Un clic sur
   l'en-tête d'un groupe le replie.
-- Les valeurs sont mises en clair : `36.000000` donne `36`, `(Gears:27//8)`
-  donne `27:8 (3.375)` — les dents, puis le rapport —, `(LSDRampAngles:45_60)`
-  donne `45° / 60°`, et un jeu de rapports son numéro dans le jeu (`Set0` donne
-  1).
+- Les valeurs sont mises en clair : `36.000000` donne `36`,
+  `(LSDRampAngles:45_60)` donne `45° / 60°`, un jeu de rapports son numéro dans
+  le jeu (`Set0` donne 1), et `(Gears:27//8)` donne `27//8`, comme dans le jeu.
 - Un paramètre réglé roue par roue tient sur une ligne, placé comme la voiture
   vue de dessus : l'avant en haut, la gauche à gauche. Il ne montre pas plus de
   détail que nécessaire : un essieu dont la gauche et la droite sont égales

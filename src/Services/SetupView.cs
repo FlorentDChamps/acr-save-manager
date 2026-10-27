@@ -249,11 +249,11 @@ public static partial class SetupView
 
     /// <summary>
     /// A stored value as it reads best. Numbers lose their trailing zeros
-    /// ("36.000000" is 36); a gear pair "(Gears:27//8)" reads "27:8 (3.375)",
-    /// with the overall ratio; ramp angles "(LSDRampAngles:45_60)" read
+    /// ("36.000000" is 36); ramp angles "(LSDRampAngles:45_60)" read
     /// "45° / 60°"; a gear set "(GearsSets:SomeCarSet1)" reads as the game
     /// numbers it, from 1: "2"; any other "(Kind:Value)" reads its value,
-    /// underscores as spaces. Anything else is shown as stored.
+    /// underscores as spaces: "(Gears:27//8)" reads "27//8", as in the game.
+    /// Anything else is shown as stored.
     /// </summary>
     public static string FormatValue(string raw)
     {
@@ -264,7 +264,6 @@ public static partial class SetupView
         if (!m.Success) return raw;
         string kind = m.Groups[1].Value, body = m.Groups[2].Value;
 
-        if (kind == "Gears" && Gears(body) is string gears) return gears;
         if (kind == "LSDRampAngles" && body.Split('_') is [var a, var b]) return $"{a}° / {b}°";
         if (kind == "GearsSets" && SetNumber().Match(body) is { Success: true } set
             && int.TryParse(set.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int n))
@@ -272,26 +271,6 @@ public static partial class SetupView
             return (n + 1).ToString(CultureInfo.InvariantCulture);
         }
         return body.Replace('_', ' ');
-    }
-
-    // "27//8" or "13//31*28//41": pairs of teeth, multiplied
-    private static string? Gears(string body)
-    {
-        var pairs = new List<string>();
-        double ratio = 1;
-        int driven = 0, driving = 1;
-        foreach (string pair in body.Split('*'))
-        {
-            string[] t = pair.Split("//");
-            bool teeth = t.Length == 2
-                && int.TryParse(t[0], NumberStyles.None, CultureInfo.InvariantCulture, out driven)
-                && int.TryParse(t[1], NumberStyles.None, CultureInfo.InvariantCulture, out driving)
-                && driving != 0;
-            if (!teeth) return null;
-            pairs.Add($"{driven}:{driving}");
-            ratio *= (double)driven / driving;
-        }
-        return $"{string.Join(" × ", pairs)} ({ratio.ToString("0.###", CultureInfo.InvariantCulture)})";
     }
 
     private static string Number(double n) =>
