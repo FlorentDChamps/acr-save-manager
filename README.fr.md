@@ -27,6 +27,27 @@ réécrit les parties choisies, et exporte toute la sauvegarde joueur en JSON li
 > compatibilité. L'outil lit et écrit **uniquement vos fichiers de sauvegarde
 > locaux**.
 
+> ⚠️ **Seule l'écriture comporte un risque.** Lire, visualiser, exporter et
+> sauvegarder ne changent rien aux fichiers du jeu. Une écriture — Import, Rename,
+> Remove, Write, Restore — réécrit une sauvegarde que le jeu n'attend de personne
+> d'autre : elle peut coûter un setup ou un profil, qu'un `.bak` remet en place, et,
+> si le jeu embarquait un jour un anti-triche, pourrait passer pour de la triche.
+> Il n'en embarque aucun aujourd'hui, et l'outil vérifie avant chaque écriture
+> (voir [Contrôle anti-triche avant écriture](#contrôle-anti-triche-avant-écriture)).
+> Vous écrivez à vos risques : l'auteur n'est pas responsable de ce qu'une écriture
+> peut coûter.
+
+**Sommaire**
+
+- [Fonctionnalités](#fonctionnalités)
+- [Formats de fichiers](#formats-de-fichiers)
+- [Démarrage](#démarrage)
+- [Antivirus & SmartScreen](#antivirus--smartscreen)
+- [État & limites](#état--limites)
+- [Structure du projet](#structure-du-projet)
+- [Soutenir le projet](#soutenir-le-projet)
+- [Licence](#licence)
+
 ---
 
 ## Fonctionnalités
@@ -176,6 +197,16 @@ se termine exactement là où il le doit. L'écriture n'a lieu que si tout est
 vérifié — un format modifié par une future version du jeu fait donc échouer
 l'opération au lieu de produire un fichier que le jeu refuserait.
 
+### Contrôle anti-triche avant écriture
+
+Assetto Corsa Rally n'embarque aucun anti-triche aujourd'hui. Si une mise à jour
+en apportait un, modifier ses sauvegardes pourrait passer pour de la triche : avant
+chaque écriture, l'outil cherche un dossier `EasyAntiCheat` ou `BattlEye` à côté du
+jeu — à côté de l'exe du jeu qui tourne, et à côté du jeu dans chaque bibliothèque
+Steam — et refuse d'écrire tant qu'il y en a un. Lire, visualiser, exporter et
+sauvegarder ne sont pas concernés. Un jeu installé hors Steam n'est vu que pendant
+qu'il tourne.
+
 ### Notification de mise à jour au démarrage
 
 Une vérification légère des releases de ce dépôt ; si une version plus récente
@@ -318,6 +349,7 @@ lancez `publish.bat` — l'exe obtenu est l'exe que vous exécutez.
 | Export JSON de la sauvegarde joueur | ✅ tout le fichier ; une section inconnue est signalée au lieu d'interrompre l'export |
 | Backups | ✅ `.bak` horodaté + restauration ; automatique sur Rename, Remove et Write, optionnel sur Import et Restore ; les 10 plus récents gardés par sauvegarde |
 | Écriture jeu ouvert | ❌ non supportée — le fichier est verrouillé, et ACR le réécrit en quittant |
+| Anti-triche à côté du jeu | ✅ un dossier `EasyAntiCheat` ou `BattlEye` à côté du jeu qui tourne, ou du jeu dans une bibliothèque Steam, refuse toute écriture — le jeu n'en embarque aucun aujourd'hui |
 | Setups entre versions | 🟡 la version qui a écrit chaque entrée est affichée et comparée à l'import ; un écart avertit, il ne bloque pas |
 | JSON setup de *AC Rally car setup manager* | 🟡 écrit et lu ; un fichier édité à la main est refusé, et le nom lisible de la voiture peut différer de celui de l'outil pour une voiture absente de sa liste |
 
@@ -334,10 +366,11 @@ src/
              fichiers .race, table des setups CarSetups (liste, export, import,
              rename, remove) et son JSON de partage, lignes du visualiseur de
              setups, dossier et rotation des backups, export JSON de la
-             sauvegarde complète
+             sauvegarde complète, emplacement du jeu et dossiers anti-triche à
+             côté de lui
   UI/        fenêtre WPF — contrôles SetupTab et RaceTab, visualiseur de setups,
-             sélecteurs de fichiers, dialogues, backups, écriture atomique,
-             fichier de réglages de l'interface
+             sélecteurs de fichiers, dialogues, backups, écriture atomique, garde
+             anti-triche sur chaque écriture, fichier de réglages de l'interface
   Updates/   vérification de release au démarrage (API GitHub)
   App        point d'entrée et gestionnaire d'erreur de dernier recours
   AppInfo    version, lue dans les métadonnées de l'assembly

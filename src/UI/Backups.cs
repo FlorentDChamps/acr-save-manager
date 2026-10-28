@@ -32,7 +32,7 @@ internal static class Backups
     /// <summary>
     /// Lets the user pick a .bak and puts it back over <paramref name="savePath"/>.
     /// Returns the status line, or null when nothing was written — the user backed
-    /// out, or the pick was refused.
+    /// out, the pick was refused, or an anti-cheat sits beside the game.
     ///
     /// Both saves keep their backups in the same folder under the same extension,
     /// so the pick is checked against <paramref name="kind"/>: a setups backup
@@ -42,6 +42,9 @@ internal static class Backups
     /// </summary>
     public static string? Restore(string savePath, SaveKind kind)
     {
+        // A restore writes the save like any other operation: refused on the same grounds.
+        if (!AntiCheatGuard.Allows()) return null;
+
         string folder = BackupStore.FolderFor(savePath);
         var dlg = new OpenFileDialog
         {

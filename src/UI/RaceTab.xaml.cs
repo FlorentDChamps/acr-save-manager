@@ -210,6 +210,7 @@ public partial class RaceTab : UserControl
     {
         if (!ValidateSaveFile()) return;
         if (!ValidateRaceFile()) return;
+        if (!AntiCheatGuard.Allows()) return;
 
         try
         {

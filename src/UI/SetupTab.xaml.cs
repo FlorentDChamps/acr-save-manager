@@ -283,6 +283,7 @@ public partial class SetupTab : UserControl
             Dialogs.Warn("Select a .setup or .json file first.", "File required");
             return;
         }
+        if (!AntiCheatGuard.Allows()) return;
 
         if (!Dialogs.Confirm(
                 "⚠  Make sure Assetto Corsa Rally is closed before importing.\n\n" +
@@ -432,6 +433,7 @@ public partial class SetupTab : UserControl
     {
         if (SingleSelected() is not SetupEntry entry) return;
         if (!ValidateSetupFile()) return;
+        if (!AntiCheatGuard.Allows()) return;
 
         if (!Dialogs.Confirm(
                 "⚠  Make sure Assetto Corsa Rally is closed before renaming.\n\n" +
@@ -492,6 +494,7 @@ public partial class SetupTab : UserControl
             return;
         }
         if (!ValidateSetupFile()) return;
+        if (!AntiCheatGuard.Allows()) return;
 
         string what = selected.Count == 1
             ? $"\"{selected[0].SetupName}\" ({selected[0].CarName})"

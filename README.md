@@ -24,6 +24,26 @@ timestamped backups and one-click restore.
 > trademark of its respective owners; the name is used here only to indicate
 > compatibility. The tool reads and writes **your own local save files** only.
 
+> ⚠️ **Only writing carries a risk.** Reading, viewing, exporting and backing up
+> change nothing in the game's files. A write — Import, Rename, Remove, Write,
+> Restore — rewrites a save the game expects nobody else to touch: it can cost a
+> setup or a profile, which a `.bak` puts back, and, should the game ever ship an
+> anti-cheat, could pass for cheating. None ships today, and the tool checks
+> before each write (see
+> [Anti-cheat check before writing](#anti-cheat-check-before-writing)). You write
+> at your own risk: the author is not responsible for what a write may cost.
+
+**Contents**
+
+- [Features](#features)
+- [File formats](#file-formats)
+- [Getting started](#getting-started)
+- [Antivirus & SmartScreen](#antivirus--smartscreen)
+- [Status & limitations](#status--limitations)
+- [Project layout](#project-layout)
+- [Support the project](#support-the-project)
+- [License](#license)
+
 ---
 
 ## Features
@@ -161,6 +181,15 @@ ends exactly where it should. The write is only performed if all of them hold,
 so a save format changed by a future game version aborts the operation instead
 of producing a file the game would reject.
 
+### Anti-cheat check before writing
+
+No anti-cheat ships with Assetto Corsa Rally today. Should one arrive with an
+update, editing its saves could pass for cheating: before each write, the tool
+looks for an `EasyAntiCheat` or `BattlEye` folder beside the game — beside the exe
+of the running game, and beside the game in every Steam library — and refuses to
+write while one is there. Reading, viewing, exporting and backing up are not
+affected. A game installed outside Steam is only seen while it runs.
+
 ### Update notice at startup
 
 A lightweight version check against this repository's releases; if a newer build
@@ -297,6 +326,7 @@ If you would rather not trust a prebuilt binary at all, clone the repo and run
 | Player save JSON export | ✅ the whole file; unknown sections are reported instead of aborting the export |
 | Backups | ✅ timestamped `.bak` + restore; automatic on Rename, Remove and Write, optional on Import and Restore; the 10 newest kept per save |
 | Writing while the game runs | ❌ not supported — the file is locked, and ACR rewrites it on exit |
+| Anti-cheat beside the game | ✅ an `EasyAntiCheat` or `BattlEye` folder beside the running game, or beside the game in a Steam library, refuses every write — none ships with the game today |
 | Cross-version setups | 🟡 the build that wrote each entry is shown and compared at import; a mismatch warns, it does not block |
 | Setup JSON of *AC Rally car setup manager* | 🟡 written and read; a file edited by hand is refused, and the friendly car name may differ from that tool's for a car missing from its list |
 
@@ -312,9 +342,11 @@ src/
              event list and its stage selection, .race file container,
              CarSetups setup table (list, export, import, rename, remove) and
              its setup-sharing JSON, the rows of the setup viewer, backup
-             folder and rotation, whole-save JSON exporter
+             folder and rotation, whole-save JSON exporter, where the game is
+             and the anti-cheat folders beside it
   UI/        WPF window — SetupTab and RaceTab controls, setup viewer, file
-             pickers, dialogs, backups, atomic save writes, UI settings file
+             pickers, dialogs, backups, atomic save writes, the anti-cheat guard
+             on every write, UI settings file
   Updates/   startup release check (GitHub API)
   App        entry point and last-chance error handler
   AppInfo    version, read from the assembly metadata

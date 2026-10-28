@@ -40,6 +40,10 @@ public partial class MainWindow : Window
         TabSetup.Configure(Pick(_settings.SetupPath, "CarSetupsDataSaveSlot.sav"),
                            _settings.BackupOnImport);
 
+        // An anti-cheat beside the game refuses every write (AntiCheatGuard): said
+        // here, after the tabs have reported their loads, so that it stays on screen.
+        if (AntiCheatGuard.Found() is string antiCheat) SetStatus(AntiCheatGuard.Notice(antiCheat));
+
         Closing += (_, _) => SaveSettings();
 
         // once the window is shown: the update prompt needs it as its owner
