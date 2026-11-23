@@ -6,9 +6,8 @@ namespace ACRSaveManager.Services;
 
 /// <summary>
 /// The fixed points of a GVAS player save (Unreal Engine 5 – Assetto Corsa
-/// Rally): the PlayerSaveGameData property and its size_field_1, and the name
-/// of the rally the weekend event config holds. The event configs themselves
-/// are found and written through <see cref="EventList"/>.
+/// Rally): the PlayerSaveGameData property and its size_field_1. The event
+/// configs themselves are found through <see cref="EventList"/>.
 /// </summary>
 public static class SaveFileParser
 {
@@ -22,28 +21,6 @@ public static class SaveFileParser
     /// </summary>
     public static bool IsPlayerSave(byte[] data) =>
         GvasHeader.IsGvas(data) && IndexOf(data, PlayerSaveGameDataString, 0) >= 0;
-
-    /// <summary>
-    /// Name of the rally in the DefaultRally event config starting at
-    /// <paramref name="blockStart"/> — first FString of the
-    /// RaceEventRaceSettingsRallyWeekendComponent data blob, e.g.
-    /// "AlsaceWeekendLong". No other event config names what it holds.
-    /// </summary>
-    public static string ReadRallyName(byte[] data, int blockStart)
-    {
-        int pos = blockStart;
-        if (!EventConfig.TryRead(data, ref pos, out _, out var components, out string reason))
-            throw new InvalidDataException(reason);
-
-        // The rally name is the first component blob's first FString, at fixed
-        // offset +96: 96 bytes of fixed fields before it (version, flags, floats).
-        const int RallyNameBlobOffset = 96;
-        int namePos = components[0].DataStart + RallyNameBlobOffset;
-
-        int nameLen = ReadInt32(data, namePos);
-        ValidateFStringLen(nameLen, "rally_name", namePos);
-        return Encoding.UTF8.GetString(data, namePos + 4, nameLen - 1); // without the \0
-    }
 
     /// <summary>
     /// Offset of the size_field_1 field (4 bytes LE), which sits immediately after

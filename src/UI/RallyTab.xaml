@@ -1,0 +1,128 @@
+<UserControl x:Class="ACRSaveManager.UI.RallyTab"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:ACRSaveManager.UI">
+  <!-- Styles and brushes live in MainWindow.Resources, which is only reachable once
+       this control is in the tree: DynamicResource, not StaticResource. -->
+  <UserControl.Resources>
+    <!-- a rally in the lists: its name, then what it holds -->
+    <DataTemplate x:Key="RallyItemTemplate">
+      <StackPanel Margin="0,2,0,2">
+        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+        <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource Brush.Muted}" TextTrimming="CharacterEllipsis"/>
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- 1. Player save selection -->
+    <GroupBox Grid.Row="0" Header="Player data save file (.sav)">
+      <StackPanel>
+        <DockPanel>
+          <TextBlock x:Name="TxtSaveVersion" DockPanel.Dock="Right"
+                     Style="{DynamicResource VersionBadge}"
+                     ToolTip="Engine build of this save — the game version is not stored in it"/>
+          <TextBox x:Name="TxtSavePath" Style="{DynamicResource PathBox}"/>
+        </DockPanel>
+        <StackPanel Orientation="Horizontal">
+          <Button Content="Select…" Style="{DynamicResource RowButton}" Click="BtnBrowseSave_Click"/>
+          <Button Content="Open folder" Style="{DynamicResource RowButton}" Click="BtnOpenSaveDir_Click"/>
+          <Button Content="Restore" Style="{DynamicResource RowButton}" Click="BtnRestoreBackup_Click"/>
+          <Button Content="Backup" Style="{DynamicResource RowButton}" Click="BtnBackup_Click"/>
+          <Button Content="Export JSON" Click="BtnExportJson_Click"
+                  ToolTip="The whole save, decoded, as a JSON file to read"/>
+        </StackPanel>
+        <!-- the car every mode starts with: the selection's, apart from the rallies -->
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+          <TextBlock Text="Car" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource Brush.Muted}"/>
+          <ComboBox x:Name="CmbCar" Width="320" DisplayMemberPath="Name"
+                    ToolTip="The car the game's menus show for every mode, until another is picked there"/>
+          <Button x:Name="BtnWriteCar" Content="Write car" Style="{DynamicResource WriteButton}" Margin="10,0,0,0"
+                  Click="BtnWriteCar_Click" ToolTip="Write this car to the save, and nothing else"/>
+        </StackPanel>
+      </StackPanel>
+    </GroupBox>
+
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="290"/>
+        <ColumnDefinition Width="12"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- 2. The rallies: the save's two weekends, then the library -->
+      <GroupBox Grid.Column="0" Header="Rallies" Margin="0">
+        <DockPanel>
+          <WrapPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+            <Button Content="New" Style="{DynamicResource RowButton}" Margin="0,0,6,6" Click="BtnNew_Click"
+                    ToolTip="A new rally, on the first of the game's calendars"/>
+            <Button Content="Duplicate" Style="{DynamicResource RowButton}" Margin="0,0,6,6" Click="BtnDuplicate_Click"
+                    ToolTip="A copy of the rally shown, to save under another name"/>
+            <Button x:Name="BtnDelete" Content="Delete" Style="{DynamicResource RowButton}" Margin="0,0,6,6" Click="BtnDelete_Click"
+                    ToolTip="Send the library's file to the Recycle Bin"/>
+            <Button Content="Import…" Style="{DynamicResource RowButton}" Margin="0,0,6,6" Click="BtnImport_Click"
+                    ToolTip="Copy rally files into the library"/>
+            <Button Content="Open folder" Margin="0,0,0,6" Click="BtnOpenLibrary_Click"
+                    ToolTip="The library's folder, rallies, next to the app"/>
+          </WrapPanel>
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+              <TextBlock Text="In the save" Foreground="{DynamicResource Brush.Muted}" Margin="0,0,0,4"/>
+              <ListBox x:Name="ListSave" ItemTemplate="{StaticResource RallyItemTemplate}"
+                       SelectionChanged="ListSave_SelectionChanged"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+              <TextBlock Text="Library" Foreground="{DynamicResource Brush.Muted}" Margin="0,12,0,4"/>
+              <TextBlock x:Name="TxtLibraryEmpty" TextWrapping="Wrap" Foreground="{DynamicResource Brush.Faint}"
+                         Text="No rally saved yet: pick one of the save's, then Save to library."/>
+              <ListBox x:Name="ListLibrary" ItemTemplate="{StaticResource RallyItemTemplate}"
+                       SelectionChanged="ListLibrary_SelectionChanged"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+      </GroupBox>
+
+      <!-- 3. The rally picked -->
+      <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+          <GroupBox Header="Rally">
+            <StackPanel>
+              <DockPanel>
+                <TextBlock Text="Name" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource Brush.Muted}"/>
+                <TextBox x:Name="TxtName" Height="28" VerticalContentAlignment="Center" TextChanged="TxtName_TextChanged"
+                         ToolTip="The name of the rally, and of its file in the library"/>
+              </DockPanel>
+              <TextBlock x:Name="TxtSource" TextWrapping="Wrap" Foreground="{DynamicResource Brush.Muted}" Margin="0,8,0,0"/>
+            </StackPanel>
+          </GroupBox>
+          <ui:RallyEditor x:Name="Editor"/>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+
+    <!-- 4. What the game would not take, and where the rally goes -->
+    <Border Grid.Row="2" Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
+            BorderThickness="1" Padding="12,8" Margin="0,12,0,0">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button x:Name="BtnSaveLibrary" Content="Save to library" Style="{DynamicResource RowButton}" Margin="0,0,24,0"
+                  Click="BtnSaveLibrary_Click"/>
+          <TextBlock Text="Write to:" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource Brush.Muted}"/>
+          <CheckBox x:Name="ChkOffline" Content="Offline Rally Weekend" VerticalAlignment="Center" Margin="0,0,14,0"/>
+          <CheckBox x:Name="ChkOnline" Content="Online Rally Weekend" VerticalAlignment="Center" Margin="0,0,14,0"/>
+          <CheckBox x:Name="ChkSingle" Content="Single Stage" VerticalAlignment="Center" Margin="0,0,14,0"
+                    ToolTip="The rally's first stage in Single Stage, offline and online, and in Free Practice: the rally's rules and that stage's weather, and the stage selection they share. The car stays."/>
+          <Button x:Name="BtnWrite" Content="Write to .sav" Style="{DynamicResource WriteButton}" Margin="0" Click="BtnWrite_Click"/>
+        </StackPanel>
+        <TextBlock x:Name="TxtProblems" Foreground="{DynamicResource Brush.Danger}" TextWrapping="Wrap"
+                   VerticalAlignment="Center" Margin="0,0,12,0"/>
+      </DockPanel>
+    </Border>
+  </Grid>
+</UserControl>

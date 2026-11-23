@@ -2,7 +2,7 @@
 BINARY STRUCTURE ANALYSIS : PlayerDataSaveSlot.sav
 ================================================================================
 Game      : Assetto Corsa Rally
-Engine    : Unreal Engine 5.4.3 (game 0.4)  /  5.6.1 (game 0.6)
+Engine    : Unreal Engine 5.4.3 (game 0.4)  /  5.6.1 (games 0.6 and 0.7)
 Save class: /Script/dmengine.SaveGameSlot
 Format    : GVAS (Unreal Engine Generic Save)
 Encoding  : Little-Endian; strings = null-terminated with int32 length prefix
@@ -15,6 +15,7 @@ Encoding  : Little-Endian; strings = null-terminated with int32 length prefix
 Reference files analysed:
   PlayerDataSaveSlot_20260509_095118.bak   80 425 B   game 0.4, UE 5.4.3
   PlayerDataSaveSlot-0.6.sav              110 242 B   game 0.6, UE 5.6.1
+  PlayerDataSaveSlot-0.7.sav              122 559 B   game 0.7, UE 5.6.1
 --------------------------------------------------------------------------------
 
 TABLE OF CONTENTS
@@ -26,11 +27,12 @@ TABLE OF CONTENTS
      3.3  Race event configuration (event configs)
      3.4  Stage, car and weather selection (after the event config list)
   4. Locating sections without hard-coded offsets
-  5. Differences 0.4 -> 0.6
+  5. Differences 0.4 -> 0.6, 0.6 -> 0.7
   6. Notes for modification
 
 WARNING: every offset below shifts between game versions, the GVAS custom
-version table having grown (109 -> 117 entries, i.e. +160 B).  Never hard-code
+version table having grown (109 -> 117 entries, i.e. +160 B, then 120 in
+0.7, +60 B).  Never hard-code
 an offset — see §4.
 
 ================================================================================
@@ -164,8 +166,14 @@ by its own int32 counter:
   locations 0.6 : count = 4   -> "Wales", "Alsace", "MonteCarlo", "Greece"
 
 The cars appear just before, in the same shape (VWPoloGTIR5,
-LanciaRally037Evo2, SkodaFabiaRSRally2, ...).  The per-car detail (upgrade
-levels, stats) was not re-validated on 0.6 and remains to be confirmed.
+LanciaRally037Evo2, SkodaFabiaRSRally2, ...), behind their own int32 counter:
+17 cars in every 0.7 save seen (2026-11-22), where the catalog lists 20 — the
+Alpine A110 and both Lancia Delta S4 are missing, the Alpine although the
+per-car detail further up names it.  ACR Save Manager finds this list from
+the event list backwards (locations, then cars, each ending where the next
+starts) and uses its spellings for the car it writes (§3.4).  The per-car
+detail (upgrade levels, stats) was not re-validated on 0.6 and remains to be
+confirmed.
 
 The location counter sits immediately before the first location name, and the
 list is immediately followed by the event config counter (§3.3).
@@ -176,24 +184,52 @@ list is immediately followed by the event config counter (§3.3).
 
 List PREFIXED BY ITS COUNTER (int32) :
   n_events   4 B   int32    4 in 0.4 (offset 0x16E9) / 5 in 0.6 (offset 0x16E1)
+                            1 in a new player's save (0.6.0.100866): DefaultRally
+                            only, the list holding just the modes played
   [n_events] × EventConfig
 
 EventConfig structure:
   event_name      var   FString   e.g. "DefaultRally"
-  n_components     4 B  int32     1 in every case observed
-  [n_components] × Component :
+  n_contexts       4 B  int32     1 in every save analysed; 2 with a rally
+                                  weekend in progress (see below)
+  [n_contexts] × Context :
     class_path    var   FString   "ERaceEventSerializableContext::RaceEventSettings"
                                   (len=49 — this is NOT a "/Script/..." path)
-    nb_uuids       4 B  int32     1 or 2
-    uuids       nb×16 B UUID[]    nb_uuids × 16 raw bytes
-    extra_ints (nb+1)×4 int32[]   (nb_uuids + 1) extra int32
-    comp_name     var   FString   e.g. "RaceEventRaceSettingsRallyWeekendComponent"
-    data_size      4 B  int32     size of the data that follows
-    data      data_size B bytes   opaque component data
+    nb_versions    4 B  int32     0, 1 or 2
+    [nb_versions] × { UUID 16 B ; int32 version }
+                                  the same shape as the GVAS custom version
+                                  table (§1)
+    n_components   4 B  int32     1 in a RaceEventSettings context
+    [n_components] × Component :
+      comp_name   var   FString   e.g. "RaceEventRaceSettingsRallyWeekendComponent"
+      data_size    4 B  int32     size of the data that follows
+      data   data_size B bytes    component data (the Rally Weekend's: below)
+
+  The byte count is the one an earlier version of this document gave
+  (nb_uuids × 16 B, then nb_uuids + 1 int32): each UUID is followed by its
+  version, and the last int32 is the number of components.  Checked on a 0.6
+  save (game 0.6.0.100866), DefaultRally:
+    02 00 00 00                                       nb_versions = 2
+    37900b75-a349-43cf-23b4-e9af80aeb550  01 00 00 00 version 1
+    e661814c-7041-89aa-eb01-75a111411909  02 00 00 00 version 2
+    01 00 00 00                                       n_components = 1
+
+  A RALLY WEEKEND IN PROGRESS (not seen in the saves analysed here; layout
+  from ACR Daily's decoding, see the sources at the end): the game keeps the
+  rally between sessions as a second context of DefaultRally, right after the
+  settings one, and removes it when the rally ends (last stage finished or
+  retired from):
+    class_path    "ERaceEventSerializableContext::RaceEventState"
+    nb_versions   0
+    n_components  4   (the rally under way; not decoded here)
+  ACR Save Manager reads every context and component, and marks a
+  DefaultRally holding this context as a rally in progress: the event is
+  shown, but never written over (the rally under way travels in the same
+  block as the settings).
 
 Events and components observed:
 
-  0.4 (n_events = 4)                      data_size   nb_uuids
+  0.4 (n_events = 4)                    data_size   nb_versions
   --------------------------------------  ---------   --------
   DefaultFreePractice  -> ...FreePracticeComponent  72       1
   DefaultTimeAttack    -> ...TimeAttackComponent   118       1
@@ -203,10 +239,11 @@ Events and components observed:
   0.6 (n_events = 5) : the same, plus
   DefaultOnlineSingleStage -> ...SingleEventComponent 73      2
 
-ACR Save Manager extracts the whole list with the selection that follows it
-(Race tab, §3.4), and writes back the event configs picked, by name.  A block
-starts at the length prefix of its event_name and ends exactly where the next
-event config starts.  Measured sizes:
+  0.7 (n_events = 6 once the online Rally Weekend has been set up), plus
+  DefaultOnlineRally   -> ...RallyWeekendComponent var       3
+
+A block starts at the length prefix of its event_name and ends exactly where
+the next event config starts.  Measured sizes:
 
   DefaultRally         1 567 B in 0.4 (AlsaceWeekendLong)
                          618 B in 0.6 (MontecarloWeekendShort)
@@ -216,73 +253,196 @@ event config starts.  Measured sizes:
 Only DefaultRally names its configuration inside its blob (see below); the
 others hold numeric settings only — no block names a stage or a car.
 
-Content of the RallyWeekendComponent data blob (partially decoded):
-  +0x00   fixed fields (version, flags, floats) — 96 bytes
-  +0x60   FString  rally name, e.g. "MontecarloWeekendShort"
-          int32    number of stages in the itinerary
-          int32    0
-          [stages] × { FString stage ; numeric fields, not decoded ;
-                       FString service park or zone, e.g. "ServiceParkDefault",
-                       "NoZone" }
+RallyWeekendComponent data, DefaultRally (offline) and DefaultOnlineRally
+(online).  Offsets from the start of the data.  The fields are the game's own
+(its classes URaceEventRaceSettingsComponent, URaceEventRaceSettingsRally-
+Component and URaceEventRaceSettingsRallyWeekendComponent, and the structures
+they hold), in the order the save writes them, which is not always the order
+the game declares them in.  Each field was checked on 0.7.0.109370 saves, by
+changing one menu setting at a time.  A flag ("bool") takes 4 bytes, 0 or 1;
+an enumeration takes 1 byte, the number the game gives its value (the names:
+the catalog's "options", see the README).
 
-  The counter matches the stage names that follow: 2 in 0.6 (445 B of blob),
-  9 in 0.4 (1 394 B — three loops of three stages).
+  +0x00   bool     bTyresConsumption        not in the menus yet (0.7)
+  +0x04   u8       TyresDamage              not in the menus yet
+  +0x05   u8       ManualRespawn            0 off, 1 on, 2 realistic
+  +0x06   bool     bFuelConsumption         not in the menus yet
+  +0x0A   bool     bDamagesEnabled          car damage
+  +0x0E   bool     bGraphicalDamages        graphical damage
+  +0x12   u8       Collisions               damage intensity  } 0 off, 1 light,
+  +0x13   u8       Wear                     wear intensity    } 2 severe,
+  +0x14   u8       MechanicalFailures                         } 3 realistic
+  +0x15   42 B     WeatherOptions           of the stage to be driven next
+                                            (below)
+  +0x3F   bool     bHardCore                hardcore mode: forces both damage
+                                            flags on and the realistic penalty
 
-  The weather options are NOT in this blob: they sit past the end of the whole
-  event config list, in a section of their own (§3.4).
+  OFFLINE (DefaultRally), the opponents then the running order:
+  +0x43   int32    NumOfOpponents           30 in a new player's save
+  +0x47   float32  Skill                    0.5 .. 1.2, shown x100
+  +0x4B   u8       Consistency              0 realistic, 1 very low, 2 low,
+                                            3 high
+  +0x4C   u8       Spread                   0 realistic, 1 competitive
+  +0x4D   float32  RaceCraft                0.1, locked in the menu
+  +0x51   u8       CarClassSelection.Type   0 automatic, 1 same class, 2 same
+                                            car, 3 custom
+  +0x52   int32    n_slots                  then n_slots × u8: the custom
+                                            selection, empty in every save
+                                            (no menu fills it in 0.7)
+  +0x56   u8       RacePenalty              0 off, 1 light, 2 realistic
+  +0x57   u8       RunningOrderType         0 random, 1 custom
+  +0x58   int32    RunningOrder             start position, 1 = first on the
+                                            road
+  +0x5C   float32  its random roll
+  +0x60   the calendar (below)
 
-Common prefix of the component data (partially decoded).  Measured on five 0.6
-saves of two players, three of them written in a row while only the Free
-Practice settings changed; offsets from the start of the data:
+  ONLINE (DefaultOnlineRally), no opponents and no running order but the
+  lobby:
+  +0x43   u8       RacePenalty
+  +0x44   int32    MaxPlayers               2 .. 16
+  +0x48   u8       CarSelectionOption       0 any car, 1 same class, 2 same car
+  +0x49   the calendar (below)
 
-  +0x00   int32    1
-  +0x04   bytes    02 01, then three int32 = 1        identical everywhere
-  +0x12   3 bytes  3 3 3 in most blocks                moved with the Free
-                                                       Practice settings
-  +0x15   byte     0..8                                most likely the weather
-                                                       type
-  +0x16   float32  0..1                                the weather RandomUniform:
-                                                       equals the §3.4 value in
-                                                       four cases
-  +0x1A   int32    0
-  +0x1E   byte     0, 2 or 7                           not identified
-  +0x1F   float32  0..1                                not identified
-  +0x23   int32    0
-  +0x27   bytes    01 02
-  +0x29   byte     0 / 1                               the weather bRandom:
-                                                       matches §3.4 three times
-                                                       out of three
-  +0x2A   3 bytes  0
-  +0x2D   float32  start time, in seconds              30600 = 08:30, 36000 =
-                                                       10:00, set in the menu
-  +0x31   int32    changes on every save               probably a random seed
-  +0x35   float32  0, 0.5, 0.76, 0.8                   not identified
-  +0x39   float32  0, 0.15, 0.3, 0.4                   not identified
-  +0x3D   3 bytes  small values                        moved with the Free
-                                                       Practice settings
+  The offsets past +0x52 hold with no custom slots: an offline calendar
+  starts at +0x60 + n_slots.  The online one's context carries a third
+  version, 570b1309-a241-5e0e-92e3-6b8ec7b8d429 (version 1), which is what
+  tells the two layouts apart besides the event name; ACR Save Manager reads
+  the data as the offline layout, then as the online one, and keeps the one
+  that ends exactly on the last byte.
 
-  Past +0x40 each component has its own tail: the FreePractice data stops at
-  72 B; the TimeAttack data holds an FString "None", four FF bytes and two
-  floats (0.1, 0.75), and is byte-identical in every save seen; the
-  SingleEvent data holds two floats (0.8, 0.1) and a few int32.
+  The calendar, FRallyWeekendCalendar:
+          FString  CalendarPresetId          the game's calendar it started
+                                             from, e.g. "MontecarloWeekendShort"
+                                             (the location, then Short / Medium
+                                             / Long for the 1, 2 and 3-day ones)
+          int32    n_stages
+          [n_stages] × FRallyWeekendSubEvent {
+            int32    Day                     0 = day 1
+            FString  TrackId                 the stage, e.g.
+                                             "MonteCarloS2SisteronCut2Reverse"
+            42 B     WeatherOptions          as set for that stage
+            42 B     DefaultWeatherOptions   what the menu's RESET goes back to
+            FString  PreRaceZoneConfigurationId
+                                             the zone before the stage:
+                                             "ServiceParkDefault" (60 min),
+                                             "ServiceParkShort" (30 min) and
+                                             "ServiceParkLong" (90 min, both
+                                             new in 0.7), or "NoZone"; every
+                                             day starts with a service park
+          }
+          FString  CustomPresetName          empty in every save seen
+          bool     bIsCustomPreset           1 once the calendar was changed in
+                                             the menu
+          16 B     CalendarInstanceId        a GUID, the same in the offline
+                                             and the online weekend of a save
 
-  So a block carries its own start time and weather, and §3.4 a copy of them
-  next to the stage and the car.
+  The game's own calendars (stages, start times, service parks) are the
+  catalog's "rallyCalendars".  An earlier version of this document read
+  "int32 n_stages, int32 0": that 0 is the first stage's day.
+
+  Writing a Rally Weekend (ACR Save Manager's editor; a weekend written with
+  several settings changed loads in game 0.7, tested 2026-11-22): the
+  component data is rebuilt field by field, its data_size and size_field_1 are fixed up, and
+  nothing else in the file moves.  The weather of the stage to be driven next
+  (+0x15) is the first stage's, CalendarInstanceId is kept, bIsCustomPreset is
+  set unless the calendar is still one of the game's as it loads, and a stage
+  picked from the catalog is written under the catalog's id, in lowercase
+  (TrackId is an FName, looked up without regard to case: a stage written so
+  loads in game 0.7, tested 2026-11-22).  The game must be closed: it keeps
+  the save in memory, writes it as soon as a menu setting changes, and does
+  not read it again while it runs.
+
+  The same settings go into either weekend: the app's rallies hold the
+  opponents, the running order and the lobby together, and each weekend takes
+  its own layout (offline: AIOptions, penalty, running order; online: penalty,
+  MaxPlayers, CarSelectionOption).  What no menu shows stays the weekend's
+  own: the tyre and fuel options, the AI's custom car slots, CustomPresetName
+  (empty in every save seen, a changed calendar included) and
+  CalendarInstanceId.
+
+WeatherOptions, 42 bytes (offsets from the start of the block, then from the
+start of the component data for the one at +0x15):
+
+  +0   0x15  u8       Preset.WeatherType      0 clear, 1 light clouds,
+                                              2 clouds, 3 light fog, 4 fog,
+                                              5 light rain, 6 rain, 7 storm,
+                                              8 light snow, 9 snow,
+                                              10 snow blizzard
+  +1   0x16  float32  Preset.RandomUniform    the §3.4 RandomUniform; redrawn
+                                              by the game at each start
+  +5   0x1A  bool     Preset.bRandom          the game draws the weather itself
+  +9   0x1E  u8       TargetPreset.WeatherType  the forecast
+  +10  0x1F  float32  TargetPreset.RandomUniform
+  +14  0x23  bool     TargetPreset.bRandom
+  +18  0x27  u8       TargetWeatherProbability  0 low, 1 realistic, 2 high,
+                                              3 very high
+  +19  0x28  u8       WeatherPersistency      0 off, 1 decreased, 2 realistic,
+                                              3 increased
+  +20  0x29  bool     bDynamicWeather         the weather moves towards the
+                                              forecast
+  +24  0x2D  float32  StartingTime            seconds since midnight, 30600 =
+                                              08:30
+  +28  0x31  int32    Seed                    changes on every save
+  +32  0x35  float32  StartingWetness 0..1    the menu sets 0.2 for light rain,
+                                              0.25 for rain and storm
+  +36  0x39  float32  StartingAccumulatedSnow 0..1
+  +40  0x3D  u8       TimeSpeed               0 fixed, 1 realistic (1x), 2 2x,
+                                              3 10x, 4 25x, 5 60x
+  +41  0x3E  u8       StartingGripLevel       0 dirty, 1 slow, 2 green, 3 fast,
+                                              4 optimal
+
+  ACR Daily reports a 38-byte weather block in saves written before a game
+  update of 2026-10-06: the block before bDynamicWeather was added.  ACR Save
+  Manager reads the current layout only.
+
+The other components (FreePractice, TimeAttack, SingleEvent) share the same
+prefix, +0x00 to +0x42: the race options, the weather at +0x15 and hardcore
+at +0x3F, as above.  Past it each has its own tail (game 0.7, 2026-11-22):
+
+  SingleEvent (DefaultSingleStage, DefaultOnlineSingleStage)
+                URaceEventRaceSettingsSingleEventComponent adds no field to
+                the class the Rally Weekend's comes from, and its data is the
+                Rally Weekend's without the calendar: offline 96 B (AIOptions,
+                penalty, running order, ending at +0x60 where the weekend's
+                calendar starts), online 73 B (penalty, MaxPlayers,
+                CarSelectionOption, ending at +0x49).  Checked field by field
+                on saves where the Single Stage's weather, opponents, skill,
+                running order, players and cars were changed in the menus.
+  FreePractice  72 B: the prefix, then the penalty (u8, +0x43) and
+                bFreeDrive (4-byte flag, +0x44).
+  TimeAttack    an FString "None", four FF bytes and two floats (0.1, 0.75),
+                byte-identical in every save seen.
+
+So each block carries its own rules, weather and start time, the Rally Weekend
+one weather block per stage besides; §3.4 holds the stage the single-stage
+modes share, with three of its weather options.
 
 --------------------------------------------------------------------------------
 3.4  STAGE, CAR AND WEATHER SELECTION (after the event config list)
 --------------------------------------------------------------------------------
 
 Immediately after the last event config comes a short section that belongs to
-no block.  It is what the Free Practice menu shows: between two 0.6 saves where
-only the Free Practice stage and settings changed, this section and the Free
-Practice block changed, and nothing else in the list.  That the other
-single-stage modes read it too is likely — it is the only stage and car in the
-list — but not verified.  The JSON export calls it "weather_settings".
+no block: the last stage used, the car, and three weather options.  The JSON
+export calls it "weather_settings".  Observed in game 0.7 (2026-11-22), one
+menu changed between two saves:
+
+  - Single Stage offline or online, Free Practice: picking a stage writes it
+    here, and the mode's weather type, start time and time speed with it (the
+    Free Practice wrote its stage and start time, its weather type not).
+  - Opening a Rally Weekend put a weekend's first stage here.
+  - A Single Stage, opened again, copies the weather type, start time and
+    time speed found here into its own block (with new random draws), and
+    keeps the rest of its block: wetness, snow, grip, forecast, opponents.
+
+So the single-stage modes share one stage, the one shown last.  ACR Save
+Manager writes a rally's first stage into the Single Stage blocks, the Free
+Practice block and this section together, so that they agree (loaded by game
+0.7, tested 2026-11-22).
 
   stage        var  FString   e.g. "GreeceS3ElatiaCut2Forward"
   car          var  FString   e.g. "SkodaFabiaRSRally2"
-  n_options     4 B int32     3 in both versions
+  n_options     4 B int32     3 in both versions; 0 in a new player's save
+                              (no single stage driven yet)
   [n_options] × { FString path ; FString value } :
     "/Script/acr.WeatherOptions/StartingTime"
         -> "(TimeSeconds=30600.000000)"
@@ -301,12 +461,20 @@ list — but not verified.  The JSON export calls it "weather_settings".
   GreeceS3ElatiaCut2Forward while the weekend blob names
   MonteCarloS2SisteronCut2Reverse.
 
-  Consequence for §3.3: a block extracted alone stops at the end of that
+  The car is one for every mode: the one the menus show until another is
+  picked.  ACR Save Manager rewrites it alone (the FString in place, then
+  size_field_1), the stage and options untouched; a car the list of §3.2
+  names keeps that spelling, another goes under the catalog's id.
+
+  Writing it (ACR Save Manager): the stage, the car kept, then the options in
+  the save's own order, each value spelled as the game spells it — the
+  numbers with six decimals, the weather type and time speed by the game's
+  enumerators (WT_LIGHT_RAIN, WT_SPEEDREALISTIC), bRandom as True or False.
+  A save with no option yet (a new player's) gets all three.
+
+  Consequence for §3.3: a block copied alone stops at the end of that
   block, so none of this travels with it.  The list and this section are
-  contiguous — from n_events to the last option value — and that run of bytes
-  is what a .race file holds.  Writing one back replaces the events by name,
-  as ticked, and the selection only when ticked: a 0.4 list has four events
-  where 0.6 has five.
+  contiguous, from n_events to the last option value.
 
 ================================================================================
 4. LOCATING SECTIONS WITHOUT HARD-CODED OFFSETS
@@ -334,14 +502,17 @@ independent of the version:
      the end of that list: none of its option paths comes first in every
      save, so none can anchor it.
 
-     Plausibility bounds used (one set, shared by the scanner and by the
-     reading of a .race file):
-       n_events 2..64 ; n_components 1..8 ; nb_uuids 0..8 ; data_size 0..500 000
+     Plausibility bounds used by the scanner:
+       n_events 1..64 ; n_contexts 1..8 ; nb_versions 0..8 ;
+       n_components 1..8 ; data_size 0..500 000 ; n_options 0..10
        FString length 1..2000
        identifiers: 3..64 characters, [A-Za-z][A-Za-z0-9_]*
+       every context's class path starts with
+       "ERaceEventSerializableContext::" — what keeps a list of one event
+       from being found by chance
 
 ================================================================================
-5. DIFFERENCES 0.4 -> 0.6
+5. DIFFERENCES 0.4 -> 0.6, 0.6 -> 0.7
 ================================================================================
 
   1. Engine: UE 5.4.3 -> 5.6.1; package UE5 version 1012 -> 1017; custom version
@@ -354,6 +525,28 @@ independent of the version:
      size_field_1 invariant are identical.  The reading problems met on the
      0.6 files came from wrong assumptions already present for 0.4
      (occurrence #2 of a name), not from a format change.
+
+Differences 0.6 -> 0.7 (game 0.7.0.109370):
+
+  1. Engine unchanged: UE 5.6.1, package versions 522 / 1017.
+  2. Custom version table 117 -> 120 entries (+60 B); everything after the
+     header shifts by 60 bytes (PlayerSaveGameData data at 0x0AF1 in the 0.7
+     sample).  Two of the game's own versions are raised, in the main table
+     and in the secondary one alike: ff1b31d9-... 4 -> 5, d932e457-... 6 -> 9.
+     The secondary table keeps its 14 entries.
+  3. NO structural change in what ACR Save Manager reads: five event configs,
+     each with the 0.6 contexts and component sizes (FreePractice 72 B,
+     TimeAttack 118 B, SingleEvent 96 B, OnlineSingleStage 73 B, Rally
+     Weekend 445 B for 2 stages), 42-byte weather blocks, the rally name at
+     +0x60, and the §3.4 selection with its three options.  The location
+     list still holds Wales, Alsace, MonteCarlo and Greece.  Compared with
+     a 0.6.0.100866 save on 2026-11-20; the real-sample tests pass on the 0.7
+     file.
+  4. A sixth event config once the online Rally Weekend has been set up:
+     DefaultOnlineRally, a RallyWeekendComponent whose context carries a third
+     version (570b1309-a241-5e0e-92e3-6b8ec7b8d429, version 1).  Its data has
+     no AI or running order settings but the lobby's instead, so its
+     calendar does not start at +0x60 (+0x49 in the saves seen).
 
 ================================================================================
 6. NOTES FOR MODIFICATION
@@ -425,9 +618,18 @@ def read_ticks(data, off):
 ================================================================================
 END OF DOCUMENT
 ================================================================================
-Updated : 2026-09-24  (0.6 / UE 5.6.1 analysis)
+Updated : 2026-11-21  (§3.3: every Rally Weekend field, offline and online)
+          2026-11-20  (§5: game 0.7)
+          2026-11-19  (§3.3: event config contexts, Rally Weekend data)
+          2026-09-24  (0.6 / UE 5.6.1 analysis)
 Source  : hex analysis of PlayerDataSaveSlot_20260509_095118.bak (0.4) and
-          PlayerDataSaveSlot-0.6.sav (0.6), cross-checked against
+          PlayerDataSaveSlot-0.6.sav (0.6), PlayerDataSaveSlot-0.7.sav (0.7),
+          cross-checked against
           Services/GvasHeader.cs, Services/EventConfig.cs, Services/EventList.cs,
-          Services/SaveFileParser.cs and Services/PlayerSaveJson.cs
+          Services/SaveFileParser.cs and Services/PlayerSaveJson.cs.
+          §3.3's Rally Weekend fields: first read by ACR Daily's decoding (MIT,
+          github.com/khanhonthetrack/acr-daily, client/acr_daily/rallyweekend.py,
+          commit 9fd0d46), then named after the game's own classes and checked
+          on 0.7.0.109370 saves, one menu setting changed at a time
+          (2026-11-21); cross-checked against Services/RallyWeekend.cs.
 ================================================================================

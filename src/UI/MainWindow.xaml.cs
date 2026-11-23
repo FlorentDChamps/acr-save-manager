@@ -30,10 +30,10 @@ public partial class MainWindow : Window
 
         Backups.Keep = _settings.BackupsKept;
 
-        // Race tab — the save used last, else the game's own
-        TabRace.StatusChanged += SetStatus;
+        // Rally tab — the player save used last, else the game's own
+        TabRally.StatusChanged += SetStatus;
         string sav = Pick(_settings.SavePath, "PlayerDataSaveSlot.sav");
-        if (sav.Length > 0) TabRace.ShowSavePath(sav);
+        if (sav.Length > 0) TabRally.ShowSavePath(sav);
 
         // Setup tab — same rule for the setups save
         TabSetup.StatusChanged += SetStatus;
@@ -282,7 +282,7 @@ public partial class MainWindow : Window
         _settings.Dark = _dark;
         _settings.BackupOnImport = TabSetup.BackupOnImport;
         _settings.SetupPath = TabSetup.SetupPath;
-        _settings.SavePath = TabRace.SavePath;
+        _settings.SavePath = TabRally.SavePath;
         _settings.WinMaximized = WindowState == WindowState.Maximized;
         // RestoreBounds holds the pre-maximise rectangle, so restoring a window
         // closed while maximised puts it back at its normal size.

@@ -1,0 +1,261 @@
+<UserControl x:Class="ACRSaveManager.UI.RallyEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Styles and brushes live in MainWindow.Resources, which is only reachable once
+       this control is in the tree: DynamicResource, and no BasedOn the window's styles. -->
+  <UserControl.Resources>
+    <!-- one setting: its name above its control -->
+    <Style x:Key="Field" TargetType="StackPanel">
+      <Setter Property="Width" Value="200"/>
+      <Setter Property="Margin" Value="0,0,16,10"/>
+    </Style>
+    <Style x:Key="FieldLabel" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Muted}"/>
+      <Setter Property="Margin" Value="0,0,0,3"/>
+      <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    </Style>
+  </UserControl.Resources>
+
+  <StackPanel>
+
+    <!-- 1. The calendar to start from -->
+    <GroupBox Header="Calendar">
+      <StackPanel>
+        <TextBlock x:Name="TxtCalendar" FontWeight="SemiBold" Margin="0,0,0,8" TextWrapping="Wrap"/>
+        <WrapPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Location"/>
+            <ComboBox x:Name="CmbLocation" DisplayMemberPath="Name" SelectionChanged="CmbLocation_SelectionChanged"/>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}" Width="260">
+            <TextBlock Style="{StaticResource FieldLabel}" Text="One of the game's calendars"/>
+            <ComboBox x:Name="CmbPreset" DisplayMemberPath="Name"/>
+          </StackPanel>
+          <Button Content="Start from it" VerticalAlignment="Bottom" Margin="0,0,0,10" Click="BtnLoadPreset_Click"
+                  ToolTip="Replace the stages with this calendar's, as the game's menu loads it. The rules are kept."/>
+        </WrapPanel>
+      </StackPanel>
+    </GroupBox>
+
+    <!-- 2. The rules, offline and online -->
+    <GroupBox Header="Rules">
+      <WrapPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblPenalty"/>
+          <ComboBox x:Name="CmbPenalty" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Rules_Changed"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblRespawn"/>
+          <ComboBox x:Name="CmbRespawn" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Rules_Changed"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblCollisions"/>
+          <ComboBox x:Name="CmbCollisions" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Rules_Changed"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblWear"/>
+          <ComboBox x:Name="CmbWear" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Rules_Changed"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblFailures"/>
+          <ComboBox x:Name="CmbFailures" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Rules_Changed"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" Text=" "/>
+          <CheckBox x:Name="ChkHardCore" Content="Hardcore mode" Height="28" VerticalContentAlignment="Center"
+                    Checked="Rules_Changed" Unchecked="Rules_Changed"
+                    ToolTip="As in the game: car damage, graphical damage and the realistic penalty, and the respawn setting locked"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" Text=" "/>
+          <CheckBox x:Name="ChkDamages" Content="Car damage" Height="28" VerticalContentAlignment="Center"
+                    Checked="Rules_Changed" Unchecked="Rules_Changed"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" Text=" "/>
+          <CheckBox x:Name="ChkGraphical" Content="Graphical damage" Height="28" VerticalContentAlignment="Center"
+                    Checked="Rules_Changed" Unchecked="Rules_Changed"/>
+        </StackPanel>
+      </WrapPanel>
+    </GroupBox>
+
+    <!-- 3. What only one of the two weekends holds -->
+    <GroupBox Header="Offline only: opponents and running order">
+      <WrapPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" Text="Number of opponents"/>
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="2,0,0,0">
+              <Button Content="▲" Tag="1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" ToolTip="+1"/>
+              <Button Content="▼" Tag="-1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" Margin="0,1,0,0" ToolTip="-1"/>
+            </StackPanel>
+            <TextBox x:Name="TxtOpponents" Height="28" VerticalContentAlignment="Center" LostFocus="Rules_Changed"/>
+          </DockPanel>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" Text="Opponents skill (50 to 120)"/>
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="2,0,0,0">
+              <Button Content="▲" Tag="1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" ToolTip="+5"/>
+              <Button Content="▼" Tag="-1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" Margin="0,1,0,0" ToolTip="-5"/>
+            </StackPanel>
+            <TextBox x:Name="TxtSkill" Height="28" VerticalContentAlignment="Center" LostFocus="Rules_Changed"/>
+          </DockPanel>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblConsistency"/>
+          <ComboBox x:Name="CmbConsistency" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Rules_Changed"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblSpread"/>
+          <ComboBox x:Name="CmbSpread" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Rules_Changed"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblAiCars"/>
+          <ComboBox x:Name="CmbAiCars" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Rules_Changed"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblOrder"/>
+          <ComboBox x:Name="CmbOrder" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Rules_Changed"/>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" Text="Start position"/>
+          <DockPanel x:Name="PanelPosition">
+            <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="2,0,0,0">
+              <Button Content="▲" Tag="1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" ToolTip="+1"/>
+              <Button Content="▼" Tag="-1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" Margin="0,1,0,0" ToolTip="-1"/>
+            </StackPanel>
+            <TextBox x:Name="TxtPosition" Height="28" VerticalContentAlignment="Center" LostFocus="Rules_Changed"/>
+          </DockPanel>
+        </StackPanel>
+      </WrapPanel>
+    </GroupBox>
+
+    <GroupBox Header="Online only: lobby">
+      <WrapPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" Text="Max players (2 to 16)"/>
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="2,0,0,0">
+              <Button Content="▲" Tag="1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" ToolTip="+1"/>
+              <Button Content="▼" Tag="-1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" Margin="0,1,0,0" ToolTip="-1"/>
+            </StackPanel>
+            <TextBox x:Name="TxtMaxPlayers" Height="28" VerticalContentAlignment="Center" LostFocus="Rules_Changed"/>
+          </DockPanel>
+        </StackPanel>
+        <StackPanel Style="{StaticResource Field}">
+          <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblLobbyCars"/>
+          <ComboBox x:Name="CmbLobbyCars" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Rules_Changed"/>
+        </StackPanel>
+      </WrapPanel>
+    </GroupBox>
+
+    <!-- 4. The stages, and the one picked -->
+    <GroupBox Header="Stages" Margin="0">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="360"/>
+          <ColumnDefinition Width="16"/>
+          <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <DockPanel Grid.Column="0">
+          <WrapPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+            <Button Content="Add stage" Style="{DynamicResource RowButton}" Margin="0,0,6,6" Click="BtnAddStage_Click"
+                    ToolTip="A stage after the one picked, on the same day"/>
+            <Button Content="Add day" Style="{DynamicResource RowButton}" Margin="0,0,6,6" Click="BtnAddDay_Click"
+                    ToolTip="A new day at the end, starting with a service park"/>
+            <Button Content="Remove" Style="{DynamicResource RowButton}" Margin="0,0,6,6" Click="BtnRemove_Click"/>
+            <Button Content="Up" Style="{DynamicResource RowButton}" Margin="0,0,6,6" Click="BtnUp_Click"
+                    ToolTip="Earlier: swaps with the stage ahead on the same day, or moves to the day before"/>
+            <Button Content="Down" Margin="0,0,0,6" Click="BtnDown_Click"
+                    ToolTip="Later: swaps with the stage after on the same day, or moves to the day after"/>
+          </WrapPanel>
+          <ListBox x:Name="ListStages" MinHeight="220" SelectionChanged="ListStages_SelectionChanged"/>
+        </DockPanel>
+        <WrapPanel Grid.Column="2" x:Name="PanelStage">
+          <StackPanel Style="{StaticResource Field}" Width="416">
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Stage"/>
+            <ComboBox x:Name="CmbStage" DisplayMemberPath="Name" SelectedValuePath="Id" SelectionChanged="Stage_Changed"/>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Service park before"/>
+            <ComboBox x:Name="CmbZone" DisplayMemberPath="Name" SelectedValuePath="Id" SelectionChanged="Stage_Changed"/>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Start time (HH:MM)"/>
+            <DockPanel>
+            <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="2,0,0,0">
+              <Button Content="▲" Tag="1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" ToolTip="+30 min"/>
+              <Button Content="▼" Tag="-1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" Margin="0,1,0,0" ToolTip="-30 min"/>
+            </StackPanel>
+            <TextBox x:Name="TxtStart" Height="28" VerticalContentAlignment="Center" LostFocus="Stage_Changed"/>
+          </DockPanel>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblWeather"/>
+            <ComboBox x:Name="CmbWeather" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Stage_Changed"/>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblSpeed"/>
+            <ComboBox x:Name="CmbSpeed" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Stage_Changed"/>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" Text=" "/>
+            <CheckBox x:Name="ChkDynamic" Height="28" VerticalContentAlignment="Center" Checked="Stage_Changed" Unchecked="Stage_Changed"/>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblTarget"/>
+            <ComboBox x:Name="CmbTarget" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Stage_Changed"/>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblProbability"/>
+            <ComboBox x:Name="CmbProbability" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Stage_Changed"/>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblPersistency"/>
+            <ComboBox x:Name="CmbPersistency" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Stage_Changed"/>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" x:Name="LblGrip"/>
+            <ComboBox x:Name="CmbGrip" DisplayMemberPath="Name" SelectedValuePath="Value" SelectionChanged="Stage_Changed"/>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Road wetness (0 to 100 %)"/>
+            <DockPanel>
+            <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="2,0,0,0">
+              <Button Content="▲" Tag="1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" ToolTip="+5 %"/>
+              <Button Content="▼" Tag="-1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" Margin="0,1,0,0" ToolTip="-5 %"/>
+            </StackPanel>
+            <TextBox x:Name="TxtWetness" Height="28" VerticalContentAlignment="Center" LostFocus="Stage_Changed"/>
+          </DockPanel>
+          </StackPanel>
+          <StackPanel Style="{StaticResource Field}">
+            <TextBlock Style="{StaticResource FieldLabel}" Text="Snow level (0 to 100 %)"/>
+            <DockPanel>
+            <StackPanel DockPanel.Dock="Right" VerticalAlignment="Center" Margin="2,0,0,0">
+              <Button Content="▲" Tag="1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" ToolTip="+5 %"/>
+              <Button Content="▼" Tag="-1" Click="Step_Click" Focusable="False"
+                      Padding="0" FontSize="8" Width="16" Height="12" Margin="0,1,0,0" ToolTip="-5 %"/>
+            </StackPanel>
+            <TextBox x:Name="TxtSnow" Height="28" VerticalContentAlignment="Center" LostFocus="Stage_Changed"/>
+          </DockPanel>
+          </StackPanel>
+        </WrapPanel>
+      </Grid>
+    </GroupBox>
+
+  </StackPanel>
+</UserControl>

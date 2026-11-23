@@ -30,6 +30,21 @@ public static partial class GameInstall
     private static partial Regex Pair { get; }
 
     /// <summary>
+    /// True while the game or its launcher runs, whatever rights it runs with:
+    /// unlike <see cref="RunningExe"/>, a game run as administrator counts.
+    /// </summary>
+    public static bool IsRunning()
+    {
+        bool running = false;
+        foreach (var process in ProcessNames.SelectMany(Process.GetProcessesByName))
+        {
+            running = true;
+            process.Dispose();
+        }
+        return running;
+    }
+
+    /// <summary>
     /// The exe of the running game, or null: not running, or not to be asked — a
     /// game run as administrator keeps its path from a process that is not.
     /// </summary>

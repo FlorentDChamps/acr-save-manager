@@ -14,7 +14,7 @@ namespace ACRSaveManager.UI;
 /// The car setups panel: what CarSetupsDataSaveSlot.sav holds, and the export,
 /// import, rename and remove that act on it.
 ///
-/// It owns the save it works on, as the Race tab owns the player save, and
+/// It owns the save it works on, as the Rally tab owns the player save, and
 /// reports what it did through
 /// <see cref="StatusChanged"/>.
 /// </summary>
@@ -300,9 +300,9 @@ public partial class SetupTab : UserControl
             // field is read from it.
             var incoming = ReadImportFile(_importPath);
 
-            // Same warning as for a .race file, from the build stamped in each
-            // entry. Only the release is compared: two builds of the same
-            // release differ by a number that says nothing about the layout.
+            // Setups from another release get a warning, from the build stamped
+            // in each entry. Only the release is compared: two builds of the
+            // same release differ by a number that says nothing about the layout.
             string toBuild = NewestGameVersion(_setups);
             var otherBuilds = incoming
                 .Select(s => CarSetupsParser.ReadEntryGameVersion(s.Entry))

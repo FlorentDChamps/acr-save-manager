@@ -2,7 +2,7 @@
 BINARY STRUCTURE ANALYSIS : CarSetupsDataSaveSlot.sav
 ================================================================================
 Game      : Assetto Corsa Rally
-Engine    : Unreal Engine 5.4.3 (game 0.4)  /  5.6.1 (game 0.6)
+Engine    : Unreal Engine 5.4.3 (game 0.4)  /  5.6.1 (games 0.6 and 0.7)
 Save class: /Script/dmengine.SaveGameSlot
 Format    : GVAS (Unreal Engine Generic Save)
 Encoding  : Little-Endian; strings = null-terminated with int32 length prefix
@@ -20,6 +20,7 @@ Encoding  : Little-Endian; strings = null-terminated with int32 length prefix
 Reference files analysed:
   CarSetupsDataSaveSlot.sav        56 396 B   game 0.4, UE 5.4.3, 4 cars / 15 setups
   CarSetupsDataSaveSlot-0.6.sav   142 812 B   game 0.6, UE 5.6.1, 7 cars / 38 setups
+  CarSetupsDataSaveSlot-0.7.sav   131 278 B   game 0.7, UE 5.6.1, 7 cars / 33 setups
 --------------------------------------------------------------------------------
 
 TABLE OF CONTENTS
@@ -35,9 +36,10 @@ TABLE OF CONTENTS
      4.6  Key-Value pairs (setup parameters)
   5. Sample data (CarSetupsDataSaveSlot-0.6.sav)
   6. Version differences 0.4 → 0.6
+  7. Version differences 0.6 → 0.7
 
 IMPORTANT: every offset below shifts between game versions, because the GVAS
-custom-version table grew (109 → 117 entries).  Never hard-code offsets; locate
+custom-version table grew (109 → 117 → 120 entries).  Never hard-code offsets; locate
 the blob by searching for the FString content "CarSetupsSaveGameData\0" — the
 blob starts immediately after it.
 
@@ -358,10 +360,36 @@ PlayerDataSaveSlot.sav.  This is unchanged in 0.6.
   0.6 file byte-for-byte, with size_field / n_setups / n_cars consistent.
 
 ================================================================================
+7. VERSION DIFFERENCES 0.6 → 0.7
+================================================================================
+
+  1. Engine unchanged: UE 5.6.1, package versions 522 / 1017.  Entries written
+     by the new game carry game_version "0.7.0.109370".
+
+  2. GVAS custom-version table 117 → 120 entries (+60 B): three new GUIDs, and
+     four versions raised, among them two of the game's own
+     (ff1b31d9-… 4 → 5, d932e457-… 6 → 9).  Everything after the header
+     shifts by 60 bytes: the class name ends at 0x09AC, the blob starts at
+     0x0A04 (size_field 128 710, unk1 1, n_cars 7 in the 0.7 sample).
+     The secondary custom table is unchanged (2 entries).
+
+  3. No other structural change.  Walked field by field, every entry of the
+     0.7 sample (32 written by 0.6.0.100866, 1 by 0.7.0.109370) ends exactly
+     where the next one starts, the last one at the end of the file; markers
+     read 511 + 0x00, separators 2.  The 0.7 entry (SkodaFabiaRSRally2) holds
+     the same 65 keys as the 0.6 entries of that car, with values of the same
+     form.
+
+  Checked on 2026-11-20 against the parser (the real-sample tests pass on the
+  0.7 files).
+
+================================================================================
 END OF DOCUMENT
 ================================================================================
-Updated : 2026-10-10  (game 0.6 / UE 5.6.1 analysis)
+Updated : 2026-11-20  (game 0.7: §7)
+          2026-10-10  (game 0.6 / UE 5.6.1 analysis)
 Source  : hex analysis of CarSetupsDataSaveSlot.sav (0.4) and
-          CarSetupsDataSaveSlot-0.6.sav (0.6), cross-checked against
+          CarSetupsDataSaveSlot-0.6.sav (0.6), CarSetupsDataSaveSlot-0.7.sav
+          (0.7), cross-checked against
           Services/CarSetupsParser.cs
 ================================================================================

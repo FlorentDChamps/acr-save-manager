@@ -2,7 +2,7 @@
 
 [![build](https://github.com/FlorentDChamps/acr-save-manager/actions/workflows/build.yml/badge.svg)](https://github.com/FlorentDChamps/acr-save-manager/actions/workflows/build.yml)
 
-**Save file manager for Assetto Corsa Rally — share car setups and race configurations, keep backups.**
+**Save file manager for Assetto Corsa Rally — share car setups and rallies, keep backups.**
 
 *Read this in [French / en français](README.fr.md).*
 
@@ -10,10 +10,10 @@ ACR keeps every car setup and every event configuration locked inside binary
 Unreal Engine save files, with no way to rename, delete, back up or share them from
 the game. This tool opens those files directly: it lists your setups, **exports one
 to a `.setup` file you can send to a teammate**, imports theirs back in, renames and
-removes entries in place, exports the race configurations of every game mode — rally
-weekend, free practice, stage, car and weather — to a `.race` file and writes back
-the parts you pick, and dumps the whole player save as readable JSON — with
-timestamped backups and one-click restore.
+removes entries in place, edits the Rally Weekends and Single Stage and keeps a
+library of rallies to load into them, picks the car the game starts with, and
+dumps the whole player save as readable JSON — with timestamped backups and
+one-click restore.
 
 > ⚠️ **Close the game before writing.** ACR holds its save files open while running,
 > and it rewrites them from memory when it exits — a write made while the game is
@@ -124,27 +124,44 @@ The labels are the save's own keys, spaced out — `Wheels.FrontLeft.TyrePressur
 is *Tyre Pressure* on the Wheels row: the names and units the game shows on
 screen are not stored in the file.
 
-### Race tab (`PlayerDataSaveSlot.sav`)
+### Rally tab (`PlayerDataSaveSlot.sav`)
 
-![Race tab, in dark mode, right after the race configurations were extracted to a .race file: one ticked box per game mode, then the stage, car and weather](docs/screenshots/race.png)
+A rally holds every option of the game's Rally Weekend menus, offline and online
+alike: the rules, the opponents and running order an offline weekend takes, the
+lobby an online one takes, and the calendar stage by stage. One rally can be
+written into either Rally Weekend of the save, or into both.
 
-The player save holds one event config per game mode — Free Practice, Time
-Attack, Single Stage, Rally Weekend, Online Single Stage — then a stage, car
-and weather selection: the one the Free Practice menu shows, and most likely the
-other single-stage modes too. Only the rally weekend's config says what it holds,
-its rally and its itinerary; the others hold numbers only, and none names a stage
-or a car. So they travel together, in one `.race` file.
-
-- **Read & extract** the race configurations to a `.race` file, named
-  `Race_{Timestamp}` by default.
-- Picking a `.race` file lists its parts — each game mode, the rally weekend
-  with its rally name, then the stage, car and weather — all ticked. Only the
-  ticked ones are written: take a friend's rally weekend and keep your own Free
-  Practice.
-- **Write to .sav** puts the ticked parts into the save — with a summary
-  confirmation before writing, and the save's internal size field fixed up so
-  the game still reads the file. Game modes are matched by name, so one the save
-  lacks (a 0.6 mode written into a 0.4 save) is skipped, and the summary says so.
+- **On the left**, the save's two Rally Weekends, then the **library**: the
+  rallies kept as files in a `rallies` folder next to the app. Picking one shows
+  it in the editor. A weekend of the save takes what it lacks from the other: the
+  offline weekend gets the online one's lobby, the online weekend the offline
+  one's opponents and running order.
+- **The editor** shows the rules with the values the game's menus offer, then the
+  calendar stage by stage — start from one of the game's calendars, add, remove
+  or move stages and days, pick each stage's service park, start time, weather,
+  forecast, road and time speed. It keeps the game's rules: one location, 4 days
+  at most, 4 stages a day as in the menu (5 in a rally file, as the game's own
+  Alsace calendar has), a service park to start each day, hardcore forcing
+  damage and the realistic penalty, every value within what the menus offer.
+  What the game would not take is listed at the bottom.
+- **New**, **Duplicate**, **Delete** (to the Recycle Bin), **Import…** (copies
+  rally files into the library) and **Open folder** manage the library.
+- **Save to library** writes the rally to `rallies\<name>.json`; renaming a rally
+  of the library renames its file, once you confirm, and sends the old one to
+  the Recycle Bin. The files are readable JSON, made to be
+  shared: send one to a friend, who imports it.
+- **Write to .sav** writes the rally into the weekends ticked — offline, online
+  or both — each laid out as the game stores it, with one summary to confirm,
+  the result re-read first and one backup. It is refused while the game runs
+  (the game would overwrite it) and in a weekend with a rally under way. What no
+  menu shows (the tyre and fuel options, not in the game yet) stays the save's.
+- **Single Stage**, ticked alone or with the weekends, writes the rally's first
+  stage into the single-stage modes: Single Stage offline and online and Free
+  Practice take the rally's rules and that stage's weather, and the stage
+  selection they share takes the stage. The game keeps one stage for all of
+  them, the last one shown, so they are written together; the car stays.
+- **Car** picks the car the game's menus show for every mode, and **Write car**
+  writes it to the save, alone: the rallies do not hold a car.
 - **Export JSON** dumps the whole player save as a structured JSON document,
   for inspection or diffing between game versions.
 - **Backup / Restore** the save file.
@@ -162,7 +179,7 @@ A `.bak` is written in the `ACRSaveManager Backups` folder next to the save it
 copies, as `{SaveName}_{yyyyMMdd_HHmmss}.bak`, and **Restore** puts any of them
 back. The two saves keep their backups in the same folder under the same
 extension, so **Restore** reads the file you pick first and refuses a setups
-backup in the Race tab, or a player backup in the Setup tab.
+backup in the Rally tab, or a player backup in the Setup tab.
 
 - **The 10 newest backups of each save are kept**; older ones go to the Recycle
   Bin as each new one is written. `BackupsKept` in `ACRSaveManager.config` sets
@@ -208,7 +225,7 @@ theme toggle until you update.
 | `.sav`        | Unreal Engine 5 GVAS binary save file (the game's own) |
 | `.setup`      | Raw binary blob of one setup entry from `CarSetupsDataSaveSlot.sav` |
 | `.json`       | JSON companion exported next to a `.setup`, same base name, in the format of [*AC Rally car setup manager*](https://www.overtake.gg/downloads/ac-rally-car-setup-manager-by-sheldor.85944/) by Sheldor: the parameters in readable form, their hash, and the entry in base64. Exported alone when several setups are, holding them all. It can be imported like a `.setup` |
-| `.race`       | Every event config of `PlayerDataSaveSlot.sav` and the stage, car and weather selection past them, behind a 16-byte provenance header |
+| `rallies\*.json` | A rally of the Rally tab's library: every option of a Rally Weekend, offline and online, under the game's own names for its values |
 | `.bak`        | Timestamped backup copy of a `.sav` file |
 
 ### Where a file comes from
@@ -218,23 +235,6 @@ A setup entry carries the game build that wrote it — `0.6.0.100866` — so a
 and next to a `.setup` waiting to be imported: a save file has no single build,
 it holds entries written by several. What a `.sav` does have is its engine
 version, which is what its own badge shows.
-
-The race configurations carry nothing of the sort, so the exporter adds a
-header of its own in front of them:
-
-```
-"ACRSM\0"   6 B   magic
-container   2 B   uint16  format version of this header (3)
-meta_len    4 B   int32   length of the JSON that follows
-crc32       4 B   uint32  checksum of the content alone
-meta        var   {"Engine":"5.6.1","CustomVersions":117,"Exported":"…","Tool":"…"}
-content     var   the event configs and the selection, untouched
-```
-
-Writing a file back warns when its engine build differs from the target save —
-a warning, not a refusal, since 0.4 and 0.6 event configs are interchangeable.
-Containers 1 and 2 held one event block each (`.weekend`, `.timeattack`,
-`.practice`, from earlier builds); they are refused with a message that says so.
 
 The player save itself records no game version anywhere: the engine build shown
 for it (`UE 5.6.1`) is the only marker it carries.
@@ -279,13 +279,13 @@ progress: never commit them.
 2. Start `ACRSaveManager.exe` — both save files load automatically if they are in
    the default location. Keep the exe in a folder you can write to: the theme, the
    window layout and the last files opened are saved to an `ACRSaveManager.config`
-   next to it, and extracted `.race` files go to that folder by default.
+   next to it, and the library of rallies is the `rallies` folder beside it.
 3. *Setup* tab: pick a setup and **View / compare** to read it — or select
    several to compare them —, **Export selected setup** to share it, or
    **Select a setup file** → **Import to sav** to add one you received.
-4. *Race* tab: **Read & extract** to save the race configurations of every mode,
-   stage, car and weather included; **Select…** a `.race` file, tick the parts to
-   take, then **Write to .sav**.
+4. *Rally* tab: pick one of the save's Rally Weekends or a rally of the library,
+   change it, then **Save to library** to keep it, or tick where it goes —
+   Offline, Online, Single Stage — and **Write to .sav**.
 5. Anything went wrong? **Restore** picks a `.bak` and puts it back.
 
 ---
@@ -324,10 +324,12 @@ If you would rather not trust a prebuilt binary at all, clone the repo and run
 |---|---|
 | Setup list / export / import / rename / remove | ✅ parsed and rewritten in place |
 | Setup viewer & comparison | 🟡 every parameter, by its key in the save: the game's own labels and units are not stored there |
-| Race configurations extract & write | ✅ boundaries walked from the EventConfig structure, game modes matched by name, save size field fixed up |
+| Rally tab: editor & library | ✅ every setting read, offline and online, and checked to write back byte for byte; a written weekend is re-read before writing, and the game loads an edited one (tested in game 0.7); a library file reads back to the same rally |
+| Rally tab: Single Stage | ✅ the Single Stage and Free Practice settings and the stage selection are decoded and checked on saves changed in the menus; the game loads what is written (tested in game 0.7) |
+| Rally tab: car | 🟡 the save's car is read and rewritten, the rest checked unchanged; not tested in game yet |
 | Player save JSON export | ✅ the whole file; unknown sections are reported instead of aborting the export |
 | Backups | ✅ timestamped `.bak` + restore; automatic on Rename, Remove and Write, optional on Import and Restore; the 10 newest kept per save |
-| Writing while the game runs | ❌ not supported — the file is locked, and ACR rewrites it on exit |
+| Writing while the game runs | ❌ not supported — ACR keeps its settings in memory and rewrites the file as soon as a menu setting changes, and on exit |
 | Anti-cheat beside the game | ✅ an `EasyAntiCheat` or `BattlEye` folder beside the running game, or beside the game in a Steam library, refuses every write — none ships with the game today |
 | Cross-version setups | 🟡 the build that wrote each entry is shown and compared at import; a mismatch warns, it does not block |
 | Setup JSON of *AC Rally car setup manager* | 🟡 written and read; a file edited by hand is refused, and the friendly car name may differ from that tool's for a car missing from its list |
@@ -341,12 +343,15 @@ them at any time and break parsing. Keep the `.bak` files.
 ```
 src/
   Services/  save file parsing and mutation: GVAS/EventConfig walker, the
-             event list and its stage selection, .race file container,
+             event list and its stage selection,
              CarSetups setup table (list, export, import, rename, remove) and
              its setup-sharing JSON, the rows of the setup viewer, backup
              folder and rotation, whole-save JSON exporter, where the game is
-             and the anti-cheat folders beside it
-  UI/        WPF window — SetupTab and RaceTab controls, setup viewer, file
+             and the anti-cheat folders beside it, the Rally Weekend settings,
+             rallies and their library files, and the names the community
+             catalog gives them
+  UI/        WPF window — SetupTab and RallyTab controls, rally
+             editor, setup viewer, file
              pickers, dialogs, backups, atomic save writes, the anti-cheat guard
              on every write, UI settings file
   Updates/   startup release check (GitHub API)
@@ -358,6 +363,8 @@ docs/
   screenshots/                          README screenshots, taken on made-up saves
 assets/
   icon.svg, icon-16.svg   artwork; icon.ico is generated from them
+  catalog.json            the community catalog, embedded: names of stages,
+                          calendars and race options
 tools/
   build-icon.py           rebuilds assets/icon.ico from the two SVGs
 tests/
@@ -384,3 +391,8 @@ Licensed under the **GNU General Public License v3.0 or later** (GPL-3.0-or-late
 see [LICENSE](LICENSE). You may use, study, share and modify this software freely, but
 any distributed version — including modified forks — must remain open source under the
 same license. Closed-source or proprietary redistribution is not permitted.
+
+The names of stages, Rally Weekend calendars and race options come from the
+[Assetto Corsa Rally – Catalog](https://github.com/dminotte/assetto-corsa-rally-catalog),
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), embedded
+unchanged as `assets/catalog.json`.

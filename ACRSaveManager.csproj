@@ -38,7 +38,7 @@
     <Company>Florent DESCHAMPS</Company>
     <Product>ACR Save Manager</Product>
     <AssemblyTitle>ACR Save Manager</AssemblyTitle>
-    <Description>Save file manager for Assetto Corsa Rally — export, import, rename and remove car setups, extract and write back the race configurations of every game mode, timestamped backups.</Description>
+    <Description>Save file manager for Assetto Corsa Rally — export, import, rename and remove car setups, edit rallies and write them into the Rally Weekends and the Single Stage modes, keep a library of rallies, timestamped backups.</Description>
     <RepositoryUrl>https://github.com/FlorentDChamps/acr-save-manager</RepositoryUrl>
   </PropertyGroup>
 
@@ -49,9 +49,12 @@
           BeforeTargets="GetAssemblyVersion"
           Condition="'$(Version)' == '$(VersionPrefix)-$(VersionSuffix)'">
     <PropertyGroup>
+      <!-- cmd's null device is a plain file named NUL anywhere else -->
+      <_NullDevice Condition="$([MSBuild]::IsOSPlatform('Windows'))">NUL</_NullDevice>
+      <_NullDevice Condition="!$([MSBuild]::IsOSPlatform('Windows'))">/dev/null</_NullDevice>
       <_GitSafeDirectory>$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace('\', '/'))</_GitSafeDirectory>
     </PropertyGroup>
-    <Exec Command="git -c safe.directory=$(_GitSafeDirectory) describe --tags --abbrev=0 2&gt;NUL"
+    <Exec Command="git -c safe.directory=$(_GitSafeDirectory) describe --tags --abbrev=0 2&gt;$(_NullDevice)"
           ConsoleToMSBuild="true"
           IgnoreExitCode="true"
           StandardOutputImportance="Low"
@@ -80,6 +83,8 @@
   <ItemGroup>
     <!-- Shown in the custom title bar, so it must ship as a WPF resource too. -->
     <Resource Include="assets\icon.ico" />
+    <!-- The community catalog (CC BY 4.0): names of stages, calendars and race options. -->
+    <EmbeddedResource Include="assets\catalog.json" LogicalName="ACRSaveManager.catalog.json" />
   </ItemGroup>
 
 </Project>

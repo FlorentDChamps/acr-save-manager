@@ -8,10 +8,15 @@ namespace ACRSaveManager.Services;
 /// (docs/PlayerDataSaveSlot_structure.txt §3.3):
 ///
 ///   event_name  FString
-///   n_components int32
-///   [component]: class_path FString, nb_uuids int32, nb_uuids × 16 B,
-///                (nb_uuids + 1) × int32, comp_name FString,
-///                data_size int32, data_size bytes
+///   n_contexts  int32
+///   [context]:  class_path FString, nb_versions int32,
+///               nb_versions × (UUID 16 B, version int32),
+///               n_components int32,
+///               [component]: comp_name FString, data_size int32, data_size bytes
+///
+/// Every config holds a RaceEventSettings context of one component; the rally
+/// weekend's adds a RaceEventState context of four while a rally is in
+/// progress.
 ///
 /// Its callers read it for different reasons — one probes every offset of the
 /// file looking for the list, the others know where a config starts and want
@@ -20,18 +25,30 @@ namespace ACRSaveManager.Services;
 /// </summary>
 internal static class EventConfig
 {
-    // Observed values: n_components is 1 in every block of both saves; nb_uuids
-    // is 1 or 2; data_size runs from 72 B to the rally weekend's 1 480 B. The
-    // bounds are the room left for future releases, not measurements.
+    // Observed values: n_contexts is 1, or 2 with a rally in progress;
+    // nb_versions is 0, 1 or 2; n_components is 1 in a settings context and 4
+    // in the rally state; data_size runs from 72 B to the rally weekend's
+    // 1 480 B. The bounds are the room left for future releases, not
+    // measurements.
+    public const int MaxContexts = 8;
+    public const int MaxVersions = 8;
     public const int MaxComponents = 8;
-    public const int MaxUuids = 8;
     public const int MaxDataSize = 500_000;
     public const int MaxNameLength = 2000;
 
-    /// <summary>One component of an event config, and where its payload sits.</summary>
+    /// <summary>The class path every context of the game starts with.</summary>
+    public const string ContextPrefix = "ERaceEventSerializableContext::";
+
+    /// <summary>The context the game adds to DefaultRally while a rally weekend is in progress.</summary>
+    public const string RallyState = ContextPrefix + "RaceEventState";
+
+    /// <summary>
+    /// One component of an event config, the context it belongs to, and where
+    /// its payload sits.
+    /// </summary>
     public readonly record struct Component(
-        string ClassPath,
-        string[] Uuids,     // hex, as stored
+        string ClassPath,   // its context's
+        string[] Uuids,     // its context's version UUIDs, hex, as stored
         string Name,
         int DataStart,
         int DataSize
@@ -39,8 +56,9 @@ internal static class EventConfig
 
     /// <summary>
     /// Walk the event config at <paramref name="pos"/>, leaving
-    /// <paramref name="pos"/> just past it. False — with a reason — when a field
-    /// is out of bounds or runs off the buffer; <paramref name="pos"/> is then
+    /// <paramref name="pos"/> just past it. The components of every context
+    /// come in file order. False — with a reason — when a field is out of
+    /// bounds or runs off the buffer; <paramref name="pos"/> is then
     /// meaningless.
     /// </summary>
     public static bool TryRead(byte[] data, ref int pos, out string eventName,
@@ -52,55 +70,63 @@ internal static class EventConfig
 
         if (!TryReadFString(data, ref pos, out eventName, out reason)) return false;
 
-        if (pos + 4 > data.Length) { reason = "n_components runs past the end of the file."; return false; }
-        int nComp = ReadInt32(data, pos); pos += 4;
-        if (nComp < 1 || nComp > MaxComponents)
-        {
-            reason = $"Unexpected n_components={nComp} at offset 0x{pos - 4:X4}.";
-            return false;
-        }
+        if (!TryReadCount(data, ref pos, "n_contexts", 1, MaxContexts, out int nContexts, out reason)) return false;
 
-        for (int ci = 0; ci < nComp; ci++)
+        for (int ci = 0; ci < nContexts; ci++)
         {
             if (!TryReadFString(data, ref pos, out string classPath, out reason)) return false;
 
-            if (pos + 4 > data.Length) { reason = "nb_uuids runs past the end of the file."; return false; }
-            int nbUuids = ReadInt32(data, pos); pos += 4;
-            if (nbUuids < 0 || nbUuids > MaxUuids)
+            if (!TryReadCount(data, ref pos, "nb_versions", 0, MaxVersions, out int nbVersions, out reason)) return false;
+
+            // nb_versions × (16-byte UUID, int32 version)
+            if (pos + nbVersions * 20 > data.Length)
             {
-                reason = $"Unexpected nb_uuids={nbUuids} at offset 0x{pos - 4:X4}.";
+                reason = "The context's versions run past the end of the file.";
                 return false;
             }
 
-            // nb_uuids × 16-byte UUID, then (nb_uuids + 1) extra int32s
-            if (pos + nbUuids * 16 + (nbUuids + 1) * 4 > data.Length)
+            string[] uuids = new string[nbVersions];
+            for (int v = 0; v < nbVersions; v++)
             {
-                reason = "The component's UUIDs run past the end of the file.";
-                return false;
+                uuids[v] = Convert.ToHexString(data, pos, 16);
+                pos += 20;
             }
 
-            string[] uuids = new string[nbUuids];
-            for (int g = 0; g < nbUuids; g++)
+            if (!TryReadCount(data, ref pos, "n_components", 1, MaxComponents, out int nComp, out reason)) return false;
+
+            for (int k = 0; k < nComp; k++)
             {
-                uuids[g] = Convert.ToHexString(data, pos, 16);
-                pos += 16;
+                if (!TryReadFString(data, ref pos, out string compName, out reason)) return false;
+
+                if (pos + 4 > data.Length) { reason = "data_size runs past the end of the file."; return false; }
+                int dataSize = ReadInt32(data, pos); pos += 4;
+                if (dataSize < 0 || dataSize > MaxDataSize || pos + dataSize > data.Length)
+                {
+                    reason = $"Unexpected data_size={dataSize} at offset 0x{pos - 4:X4}.";
+                    return false;
+                }
+
+                components.Add(new Component(classPath, uuids, compName, pos, dataSize));
+                pos += dataSize;
             }
-            pos += (nbUuids + 1) * 4;
-
-            if (!TryReadFString(data, ref pos, out string compName, out reason)) return false;
-
-            if (pos + 4 > data.Length) { reason = "data_size runs past the end of the file."; return false; }
-            int dataSize = ReadInt32(data, pos); pos += 4;
-            if (dataSize < 0 || dataSize > MaxDataSize || pos + dataSize > data.Length)
-            {
-                reason = $"Unexpected data_size={dataSize} at offset 0x{pos - 4:X4}.";
-                return false;
-            }
-
-            components.Add(new Component(classPath, uuids, compName, pos, dataSize));
-            pos += dataSize;
         }
 
+        return true;
+    }
+
+    /// <summary>An int32 counter within [<paramref name="min"/>, <paramref name="max"/>].</summary>
+    private static bool TryReadCount(byte[] data, ref int pos, string field, int min, int max,
+                                     out int value, out string reason)
+    {
+        value = 0;
+        if (pos + 4 > data.Length) { reason = $"{field} runs past the end of the file."; return false; }
+        value = ReadInt32(data, pos); pos += 4;
+        if (value < min || value > max)
+        {
+            reason = $"Unexpected {field}={value} at offset 0x{pos - 4:X4}.";
+            return false;
+        }
+        reason = "";
         return true;
     }
 

@@ -23,7 +23,7 @@ public class PlayerSaveTests
     {
         byte[] data = SaveBuilder.PlayerData(leaderboardFirst);
         var rally = EventList.Find(data).Events.Single(e => e.Name == "DefaultRally");
-        Assert.Equal(SaveBuilder.RallyName, SaveFileParser.ReadRallyName(data, rally.Start));
+        Assert.Equal(SaveBuilder.RallyName, RallyWeekend.Find(data, rally.Start)!.Calendar);
     }
 
     [Fact]
@@ -123,5 +123,22 @@ public class PlayerSaveTests
         foreach (string key in new[] { "gvas_header", "event_configs", "event_leaderboards", "weather_settings" })
             Assert.Equal(ascii[key]!.ToJsonString(), utf16[key]!.ToJsonString());
         Assert.DoesNotContain("_error", utf16.ToJsonString());
+    }
+
+    [Fact] // each GUID used to run into the version of the one before
+    public void The_export_gives_every_context_and_its_guids()
+    {
+        var doc = PlayerSaveJson.Export(SaveBuilder.PlayerData(rallyInProgress: true), "Save.sav");
+        var rally = doc["event_configs"]!.AsArray()
+            .Single(c => c!["event_name"]!.GetValue<string>() == "DefaultRally")!;
+        var components = rally["components"]!.AsArray();
+
+        Assert.Equal(5, components.Count);
+        Assert.Equal([Convert.ToHexString(SaveBuilder.VersionUuid("DefaultRally", 0)),
+                      Convert.ToHexString(SaveBuilder.VersionUuid("DefaultRally", 1))],
+                     components[0]!["guids"]!.AsArray().Select(g => g!.GetValue<string>()));
+        Assert.Equal(SaveBuilder.RaceEventSettings, components[0]!["class_path"]!.GetValue<string>());
+        Assert.All(components.Skip(1),
+                   c => Assert.Equal(SaveBuilder.RaceEventState, c!["class_path"]!.GetValue<string>()));
     }
 }

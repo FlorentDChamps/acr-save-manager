@@ -2,7 +2,7 @@
 
 [![build](https://github.com/FlorentDChamps/acr-save-manager/actions/workflows/build.yml/badge.svg)](https://github.com/FlorentDChamps/acr-save-manager/actions/workflows/build.yml)
 
-**Gestionnaire de sauvegardes pour Assetto Corsa Rally — partager ses setups et ses configurations de course, garder des backups.**
+**Gestionnaire de sauvegardes pour Assetto Corsa Rally — partager ses setups et ses rallyes, garder des backups.**
 
 *Lire ce document en [anglais / English](README.md).*
 
@@ -11,10 +11,10 @@ fichiers de sauvegarde binaires Unreal Engine, sans aucun moyen de les renommer,
 supprimer, sauvegarder ou partager depuis le jeu. Cet outil ouvre ces fichiers
 directement : il liste vos setups, **exporte un setup vers un fichier `.setup` que
 vous pouvez envoyer à un coéquipier**, réimporte les siens, renomme et supprime des
-entrées sur place, exporte les configurations de course de chaque mode de jeu — week-end
-de rallye, essais libres, spéciale, voiture et météo — vers un fichier `.race` et
-réécrit les parties choisies, et exporte toute la sauvegarde joueur en JSON lisible
-— avec backups horodatés et restauration en un clic.
+entrées sur place, modifie les Rally Weekends et le Single Stage et garde une
+bibliothèque de rallyes à y charger, choisit la voiture avec laquelle le jeu
+démarre, et exporte toute la sauvegarde joueur en JSON lisible — avec backups
+horodatés et restauration en un clic.
 
 > ⚠️ **Fermez le jeu avant toute écriture.** ACR garde ses fichiers de sauvegarde
 > ouverts tant qu'il tourne, et les réécrit depuis la mémoire en quittant : une
@@ -135,30 +135,52 @@ Les libellés sont les clés de la sauvegarde elle-même, espacées —
 les noms et unités que le jeu affiche à l'écran ne sont pas stockés dans le
 fichier.
 
-### Onglet Race (`PlayerDataSaveSlot.sav`)
+### Onglet Rally (`PlayerDataSaveSlot.sav`)
 
-![Onglet Race, en mode sombre, juste après l'extraction des configurations de course dans un fichier .race : une case cochée par mode de jeu, puis la spéciale, la voiture et la météo](docs/screenshots/race.png)
+Un rallye contient toutes les options des menus Rally Weekend du jeu, hors ligne
+comme en ligne : les règles, les adversaires et l'ordre de départ que prend un
+week-end hors ligne, le lobby que prend un week-end en ligne, et le calendrier
+spéciale par spéciale. Un même rallye s'écrit dans l'un ou l'autre Rally Weekend
+de la sauvegarde, ou dans les deux.
 
-La sauvegarde joueur contient une configuration d'événement par mode de jeu —
-Free Practice, Time Attack, Single Stage, Rally Weekend, Online Single Stage —
-puis une sélection de spéciale, voiture et météo : celle qu'affiche le menu Free
-Practice, et très probablement les autres modes à spéciale unique. Seule la
-config du week-end de rallye dit ce qu'elle contient, son rallye et son
-itinéraire ; les autres ne contiennent que des nombres, et aucune ne nomme une
-spéciale ou une voiture. Elles voyagent donc ensemble, dans un seul fichier
-`.race`.
-
-- **Read & extract** exporte les configurations de course vers un fichier `.race`,
-  nommé par défaut `Race_{Horodatage}`.
-- Choisir un fichier `.race` affiche ses parties — chaque mode de jeu, le week-end
-  de rallye avec le nom de son rallye, puis la spéciale, la voiture et la météo —
-  toutes cochées. Seules les cochées sont écrites : prenez le week-end de rallye
-  d'un ami et gardez votre Free Practice.
-- **Write to .sav** écrit les parties cochées dans la sauvegarde — avec
-  confirmation résumée avant écriture, et mise à jour du champ de taille interne
-  pour que le jeu relise le fichier. Les modes de jeu sont appariés par nom : celui
-  que la sauvegarde n'a pas (un mode 0.6 écrit dans une sauvegarde 0.4) est
-  ignoré, et le résumé le dit.
+- **À gauche**, les deux Rally Weekends de la sauvegarde, puis la
+  **bibliothèque** : les rallyes gardés en fichiers dans un dossier `rallies` à
+  côté de l'appli. En choisir un l'affiche dans l'éditeur. Un week-end de la
+  sauvegarde prend à l'autre ce qui lui manque : le week-end hors ligne reçoit
+  le lobby du week-end en ligne, le week-end en ligne les adversaires et l'ordre
+  de départ du hors ligne.
+- **L'éditeur** affiche les règles avec les valeurs que proposent les menus du
+  jeu, puis le calendrier spéciale par spéciale — partir d'un calendrier du jeu,
+  ajouter, retirer ou déplacer des spéciales et des jours, choisir pour chaque
+  spéciale le parc d'assistance, l'heure de départ, la météo, la prévision, la
+  route et la vitesse du temps. Il respecte les règles du jeu : un seul lieu,
+  4 jours au plus, 4 spéciales par jour comme dans le menu (5 dans un fichier
+  de rallye, comme le calendrier d'Alsace du jeu), un parc d'assistance en
+  début de journée, le hardcore qui impose les dégâts et la pénalité réaliste,
+  chaque valeur dans ce que proposent les menus. Ce que le jeu refuserait est
+  listé en bas.
+- **New**, **Duplicate**, **Delete** (vers la corbeille), **Import…** (copie des
+  fichiers de rallye dans la bibliothèque) et **Open folder** gèrent la
+  bibliothèque.
+- **Save to library** écrit le rallye dans `rallies\<nom>.json` ; renommer un
+  rallye de la bibliothèque renomme son fichier, après confirmation, et envoie
+  l'ancien à la corbeille. Les fichiers sont du JSON
+  lisible, faits pour être partagés : envoyez-en un à un ami, qui l'importe.
+- **Write to .sav** écrit le rallye dans les week-ends cochés — hors ligne, en
+  ligne ou les deux —, chacun sous la forme que le jeu enregistre, avec un seul
+  résumé à confirmer, le résultat relu avant et un seul backup. L'écriture est
+  refusée tant que le jeu tourne (il l'écraserait) et dans un week-end où un
+  rallye est en cours. Ce qu'aucun menu n'affiche (les options de pneus et de
+  carburant, pas encore dans le jeu) reste celui de la sauvegarde.
+- **Single Stage**, coché seul ou avec les week-ends, écrit la première spéciale
+  du rallye dans les modes à spéciale unique : Single Stage hors ligne et en
+  ligne et Free Practice prennent les règles du rallye et la météo de cette
+  spéciale, et la sélection de spéciale qu'ils partagent prend la spéciale. Le
+  jeu garde une seule spéciale pour tous ces modes, la dernière affichée : ils
+  s'écrivent donc ensemble ; la voiture ne change pas.
+- **Car** choisit la voiture que les menus du jeu affichent pour tous les modes,
+  et **Write car** l'écrit seule dans la sauvegarde : les rallyes ne contiennent
+  pas de voiture.
 - **Export JSON** exporte toute la sauvegarde joueur en document JSON structuré,
   pour inspection ou comparaison entre versions du jeu.
 - **Backup / Restore** du fichier de sauvegarde.
@@ -176,7 +198,7 @@ Le `.bak` est écrit dans le dossier `ACRSaveManager Backups`, à côté de la
 sauvegarde qu'il copie, sous la forme `{NomSauvegarde}_{aaaaMMjj_HHmmss}.bak`, et
 **Restore** remet n'importe lequel en place. Les deux sauvegardes rangent leurs
 backups dans le même dossier, sous la même extension : **Restore** lit donc
-d'abord le fichier choisi et refuse un backup de setups dans l'onglet Race, ou un
+d'abord le fichier choisi et refuse un backup de setups dans l'onglet Rally, ou un
 backup joueur dans l'onglet Setup.
 
 - **Les 10 backups les plus récents de chaque sauvegarde sont gardés** ; les plus
@@ -224,7 +246,7 @@ reste à côté de l'interrupteur de thème tant que vous n'avez pas mis à jour
 | `.sav`        | Fichier de sauvegarde binaire Unreal Engine 5 (format GVAS), celui du jeu |
 | `.setup`      | Blob binaire brut d'une entrée setup de `CarSetupsDataSaveSlot.sav` |
 | `.json`       | JSON exporté à côté du `.setup`, même nom de base, au format de [*AC Rally car setup manager*](https://www.overtake.gg/downloads/ac-rally-car-setup-manager-by-sheldor.85944/) de Sheldor : les paramètres sous forme lisible, leur hash, et l'entrée en base64. Exporté seul quand plusieurs setups le sont, il les contient tous. Il s'importe comme un `.setup` |
-| `.race`       | Toutes les event configs de `PlayerDataSaveSlot.sav` et la sélection spéciale, voiture et météo qui les suit, précédées d'un en-tête de provenance de 16 octets |
+| `rallies\*.json` | Un rallye de la bibliothèque de l'onglet Rally : toutes les options d'un Rally Weekend, hors ligne et en ligne, sous les noms que le jeu donne à leurs valeurs |
 | `.bak`        | Copie de sauvegarde horodatée d'un fichier `.sav` |
 
 ### D'où vient un fichier
@@ -235,24 +257,6 @@ colonne Build et à côté du `.setup` en attente d'import : un fichier de sauve
 n'a pas de version unique, il contient des entrées écrites par plusieurs. Ce qu'un
 `.sav` possède en propre, c'est sa version de moteur — c'est elle que son badge
 affiche.
-
-Les configurations de course ne portent rien de tel : l'export ajoute donc son
-propre en-tête devant elles :
-
-```
-"ACRSM\0"   6 o   magic
-container   2 o   uint16  version de format de cet en-tête (3)
-meta_len    4 o   int32   longueur du JSON qui suit
-crc32       4 o   uint32  somme de contrôle du contenu seul
-meta        var   {"Engine":"5.6.1","CustomVersions":117,"Exported":"…","Tool":"…"}
-contenu     var   les event configs et la sélection, inchangées
-```
-
-La réécriture d'un fichier avertit quand sa version de moteur diffère de celle de
-la sauvegarde cible — un avertissement, pas un refus, les event configs 0.4 et 0.6
-étant interchangeables. Les conteneurs 1 et 2 contenaient chacun un seul bloc
-d'événement (`.weekend`, `.timeattack`, `.practice`, des versions précédentes) ;
-ils sont refusés avec un message qui le dit.
 
 La sauvegarde joueur, elle, n'enregistre aucune version du jeu : la version de
 moteur affichée (`UE 5.6.1`) est le seul marqueur qu'elle contient.
@@ -299,13 +303,14 @@ ne la commitez jamais.
    automatiquement s'ils sont à l'emplacement par défaut. Gardez l'exe dans un
    dossier où vous pouvez écrire : le thème, la disposition de la fenêtre et les
    derniers fichiers ouverts sont enregistrés dans un `ACRSaveManager.config` à
-   côté de lui, et c'est là que vont par défaut les fichiers `.race` extraits.
+   côté de lui, et la bibliothèque de rallyes est le dossier `rallies` à côté.
 3. Onglet *Setup* : sélectionnez un setup et **View / compare** pour le lire —
    ou plusieurs pour les comparer —, **Export selected setup** pour le partager,
    ou **Select a setup file** → **Import to sav** pour en ajouter un reçu.
-4. Onglet *Race* : **Read & extract** pour sauver les configurations de course
-   de tous les modes, spéciale, voiture et météo comprises ; **Select…** un fichier
-   `.race`, cochez les parties à prendre, puis **Write to .sav**.
+4. Onglet *Rally* : choisissez un des Rally Weekends de la sauvegarde ou un
+   rallye de la bibliothèque, modifiez-le, puis **Save to library** pour le
+   garder, ou cochez où l'écrire — Offline, Online, Single Stage — et
+   **Write to .sav**.
 5. Un souci ? **Restore** sélectionne un `.bak` et le remet en place.
 
 ---
@@ -346,10 +351,12 @@ lancez `publish.bat` — l'exe obtenu est l'exe que vous exécutez.
 |---|---|
 | Liste / export / import / rename / remove des setups | ✅ parsés et réécrits sur place |
 | Visualisation & comparaison des setups | 🟡 tous les paramètres, sous leur clé dans la sauvegarde : les libellés et unités du jeu n'y sont pas stockés |
-| Extraction & écriture des configurations de course | ✅ bornes parcourues depuis la structure EventConfig, modes de jeu appariés par nom, champ de taille de la sauvegarde recalculé |
+| Onglet Rally : éditeur et bibliothèque | ✅ tous les réglages lus, hors ligne et en ligne, et vérifiés en réécriture à l'octet près ; un week-end écrit est relu avant l'écriture, et le jeu charge un week-end modifié (testé en jeu 0.7) ; un fichier de la bibliothèque se relit en un rallye identique |
+| Onglet Rally : Single Stage | ✅ les réglages Single Stage et Free Practice et la sélection de spéciale sont décodés et vérifiés sur des sauvegardes modifiées dans les menus ; le jeu charge ce qui est écrit (testé en jeu 0.7) |
+| Onglet Rally : voiture | 🟡 la voiture de la sauvegarde est lue et réécrite, le reste vérifié inchangé ; pas encore testé en jeu |
 | Export JSON de la sauvegarde joueur | ✅ tout le fichier ; une section inconnue est signalée au lieu d'interrompre l'export |
 | Backups | ✅ `.bak` horodaté + restauration ; automatique sur Rename, Remove et Write, optionnel sur Import et Restore ; les 10 plus récents gardés par sauvegarde |
-| Écriture jeu ouvert | ❌ non supportée — le fichier est verrouillé, et ACR le réécrit en quittant |
+| Écriture jeu ouvert | ❌ non supportée — ACR garde ses réglages en mémoire et réécrit le fichier dès qu'un réglage de menu change, et en quittant |
 | Anti-triche à côté du jeu | ✅ un dossier `EasyAntiCheat` ou `BattlEye` à côté du jeu qui tourne, ou du jeu dans une bibliothèque Steam, refuse toute écriture — le jeu n'en embarque aucun aujourd'hui |
 | Setups entre versions | 🟡 la version qui a écrit chaque entrée est affichée et comparée à l'import ; un écart avertit, il ne bloque pas |
 | JSON setup de *AC Rally car setup manager* | 🟡 écrit et lu ; un fichier édité à la main est refusé, et le nom lisible de la voiture peut différer de celui de l'outil pour une voiture absente de sa liste |
@@ -363,13 +370,15 @@ jeu peut les changer à tout moment et casser le parsing. Gardez les `.bak`.
 ```
 src/
   Services/  parsing et modification des sauvegardes : parcours GVAS/EventConfig,
-             liste d'événements et sa sélection de spéciale, conteneur des
-             fichiers .race, table des setups CarSetups (liste, export, import,
+             liste d'événements et sa sélection de spéciale, table des setups
+             CarSetups (liste, export, import,
              rename, remove) et son JSON de partage, lignes du visualiseur de
              setups, dossier et rotation des backups, export JSON de la
              sauvegarde complète, emplacement du jeu et dossiers anti-triche à
-             côté de lui
-  UI/        fenêtre WPF — contrôles SetupTab et RaceTab, visualiseur de setups,
+             côté de lui, réglages du Rally Weekend, rallyes et fichiers de leur
+             bibliothèque, et noms que leur donne le catalogue communautaire
+  UI/        fenêtre WPF — contrôles SetupTab et RallyTab, éditeur de
+             rallye, visualiseur de setups,
              sélecteurs de fichiers, dialogues, backups, écriture atomique, garde
              anti-triche sur chaque écriture, fichier de réglages de l'interface
   Updates/   vérification de release au démarrage (API GitHub)
@@ -381,6 +390,8 @@ docs/
   screenshots/                          captures des README, sur des sauvegardes inventées
 assets/
   icon.svg, icon-16.svg   visuels ; icon.ico est généré à partir d'eux
+  catalog.json            le catalogue communautaire, embarqué : noms des
+                          spéciales, des calendriers et des options de course
 tools/
   build-icon.py           régénère assets/icon.ico depuis les deux SVG
 tests/
@@ -408,3 +419,8 @@ voir [LICENSE](LICENSE). Vous pouvez utiliser, étudier, partager et modifier ce
 logiciel librement, mais toute version distribuée — forks modifiés compris — doit
 rester open source sous la même licence. Toute redistribution propriétaire ou à
 sources fermées est interdite.
+
+Les noms des spéciales, des calendriers du Rally Weekend et des options de course
+viennent de l'[Assetto Corsa Rally – Catalog](https://github.com/dminotte/assetto-corsa-rally-catalog),
+sous licence [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), embarqué
+tel quel dans `assets/catalog.json`.

@@ -22,6 +22,8 @@
   <ItemGroup>
     <!-- The services have no WPF dependency: compile them as they are. -->
     <Compile Include="$(ServicesDir)\*.cs" LinkBase="Services" />
+    <!-- GameCatalog reads the catalog from its own assembly, as in the app. -->
+    <EmbeddedResource Include="$(ServicesDir)\..\..\assets\catalog.json" LogicalName="ACRSaveManager.catalog.json" />
   </ItemGroup>
 
   <ItemGroup>

@@ -68,15 +68,19 @@ public static class PlayerSaveJson
     //   n_events int32
     //   [event]:
     //     event_name FString
-    //     n_components int32
-    //     [component]:
-    //       class_path FString  ("ERaceEventSerializableContext::RaceEventSettings")
-    //       nb_uuids int32
-    //       nb_uuids × 16-byte GUID
-    //       (nb_uuids+1) × int32  (extra ints)
-    //       comp_name FString
-    //       data_size int32
-    //       data_size bytes (opaque component data)
+    //     n_contexts int32
+    //     [context]:
+    //       class_path FString  ("ERaceEventSerializableContext::RaceEventSettings",
+    //                            or ...::RaceEventState for a rally in progress)
+    //       nb_versions int32
+    //       nb_versions × (16-byte GUID, int32 version)
+    //       n_components int32
+    //       [component]:
+    //         comp_name FString
+    //         data_size int32
+    //         data_size bytes (opaque component data)
+    //
+    // Each component is exported with its context's class path and GUIDs.
     //
     // EventList finds the list; each config is walked again here for the
     // detail the document shows.
@@ -244,7 +248,7 @@ public static class PlayerSaveJson
     // A section of its own, sitting just past the end of the event config list
     // and belonging to no block (docs §3.4):
     //   stage FString + car FString
-    //   n_options int32 (= 3)
+    //   n_options int32 (3, or 0 until a single stage has been driven)
     //   [option]: path FString + value FString
     //
     // EventList reads it with the list, as the selection the single-stage modes

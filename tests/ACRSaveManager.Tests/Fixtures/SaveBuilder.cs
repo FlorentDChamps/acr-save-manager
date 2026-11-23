@@ -1,4 +1,5 @@
 using System.Text;
+using ACRSaveManager.Services;
 
 namespace ACRSaveManager.Tests.Fixtures;
 
@@ -71,6 +72,7 @@ internal sealed record Setup(
 internal static class SaveBuilder
 {
     public const string RaceEventSettings = "ERaceEventSerializableContext::RaceEventSettings";
+    public const string RaceEventState = "ERaceEventSerializableContext::RaceEventState";
 
     // ── GVAS header + property preamble (docs, §1–§3) ──────────────────────────
 
@@ -171,9 +173,16 @@ internal static class SaveBuilder
     /// <param name="seed">Shifts every event blob, so two saves differ in each
     /// of their events.</param>
     /// <param name="online">Add the fifth event config of game 0.6.</param>
+    /// <param name="rallyInProgress">Give DefaultRally the second context the
+    /// game adds while a rally weekend is under way.</param>
+    /// <param name="newPlayer">Only DefaultRally in the list and no weather
+    /// options, as in the save of a player who has driven nothing else.</param>
+    /// <param name="onlineRally">Add the online Rally Weekend of game 0.7,
+    /// <see cref="OnlineWeekend"/>, last in the list.</param>
     public static byte[] PlayerData(bool leaderboardFirst = false, string playerName = PlayerName,
                                     bool presetFirst = false, string stage = WeatherStage,
-                                    int seed = 0, bool online = false)
+                                    int seed = 0, bool online = false, bool rallyInProgress = false,
+                                    bool newPlayer = false, bool onlineRally = false)
     {
         var w = new Writer();
         Header(w, "PlayerSaveGameData");
@@ -186,20 +195,34 @@ internal static class SaveBuilder
         if (leaderboardFirst) Leaderboard(w, "DefaultTimeAttack", 3);
 
         // §3.3: counter, then the event configs
-        w.Int32(online ? 5 : 4);
-        EventConfig(w, "DefaultFreePractice", "FreePractice", Pattern(72, 1 + seed));
-        EventConfig(w, "DefaultTimeAttack", "TimeAttack", Pattern(118, 2 + seed));
-        EventConfig(w, "DefaultSingleStage", "SingleEvent", Pattern(96, 3 + seed));
-        EventConfig(w, "DefaultRally", "RallyWeekend", RallyBlob(seed), uuids: 2);
-        if (online) EventConfig(w, "DefaultOnlineSingleStage", "SingleEvent", Pattern(73, 4 + seed), uuids: 2);
+        w.Int32((newPlayer ? 1 : online ? 5 : 4) + (onlineRally ? 1 : 0));
+        if (!newPlayer)
+        {
+            EventConfig(w, "DefaultFreePractice", "FreePractice", FreePractice(seed));
+            EventConfig(w, "DefaultTimeAttack", "TimeAttack", Pattern(118, 2 + seed));
+            EventConfig(w, "DefaultSingleStage", "SingleEvent", SingleStage(seed).WriteSingleStage());
+        }
+        EventConfig(w, "DefaultRally", "RallyWeekend", OfflineWeekend(seed).Write(), versions: 2,
+                    state: rallyInProgress ? RallyState(seed) : null);
+        if (online && !newPlayer)
+            EventConfig(w, "DefaultOnlineSingleStage", "SingleEvent", OnlineSingleStage(seed).WriteSingleStage(), versions: 2);
+        if (onlineRally)
+            EventConfig(w, "DefaultOnlineRally", "RallyWeekend", OnlineWeekend(seed).Write(), versions: 3);
 
         // §3.4: the weather settings, past the end of the config list
         var start = ("/Script/acr.WeatherOptions/StartingTime", "(TimeSeconds=30600.000000)");
         var preset = ("/Script/acr.WeatherOptions/Preset", "(WeatherType=WT_CLEAR,RandomUniform=0.5,bRandom=False)");
         var speed = ("/Script/acr.WeatherOptions/TimeSpeed", "WT_SPEEDREALISTIC");
-        w.FString(stage).FString(WeatherCar).Int32(3);
-        foreach (var (path, value) in presetFirst ? [preset, start, speed] : new[] { start, preset, speed })
-            w.FString(path).FString(value);
+        if (newPlayer)
+        {
+            w.FString(stage).FString(WeatherCar).Int32(0);   // no single stage driven yet: no options
+        }
+        else
+        {
+            w.FString(stage).FString(WeatherCar).Int32(3);
+            foreach (var (path, value) in presetFirst ? [preset, start, speed] : new[] { start, preset, speed })
+                w.FString(path).FString(value);
+        }
 
         // the blocks that follow, one of them sharing a config's name
         Leaderboard(w, "DefaultFreePractice", 2);
@@ -217,31 +240,92 @@ internal static class SaveBuilder
     private static byte[] Pattern(int size, int seed) =>
         [.. Enumerable.Range(0, size).Select(i => (byte)(i * 31 + seed))];
 
-    /// <summary>
-    /// The rally weekend's own blob: the name the tool reads at the fixed offset
-    /// +96, then the itinerary. No weather in it — that section is written after
-    /// the config list instead.
-    /// </summary>
-    private static byte[] RallyBlob(int seed)
-    {
-        var w = new Writer();
-        w.Raw(Pattern(96, 9 + seed))                   // fixed fields
-         .FString(RallyName)
-         .Int32(1).Int32(0)                            // one stage in the itinerary
-         .FString(RallyStage).Raw(Pattern(24, 5))
-         .FString("ServiceParkDefault");
-        return w.ToArray();
-    }
+    /// <summary>The weather of a stage: made-up values, all different, so a misplaced field shows.</summary>
+    public static WeatherSettings Weather(byte weather = 3, float start = 30600, int seed = 0) =>
+        new(weather, 0.25f, false, 7, 0.75f, false, 2, 3, true, start, 4242 + seed, 0.2f, 0.6f, 4, 1);
 
-    private static void EventConfig(Writer w, string name, string kind, byte[] data, int uuids = 1)
+    /// <summary>
+    /// An offline Rally Weekend (docs §3.3) of two days: <see cref="RallyName"/>,
+    /// <see cref="RallyStage"/> then a second stage. Every value is made up, and
+    /// each field holds a value of its own, so reading one field in another's
+    /// place shows.
+    /// </summary>
+    public static RallyWeekend OfflineWeekend(int seed = 0) => new(
+        TyresConsumption: true, TyresDamage: 2, ManualRespawn: 2, FuelConsumption: false,
+        DamagesEnabled: true, GraphicalDamages: false, Collisions: 1, Wear: 2, MechanicalFailures: 3,
+        NextWeather: Weather(seed: seed), HardCore: false,
+        Ai: new AiSettings(7, 0.9f, 3, 1, 0.1f, 1, []),
+        Penalty: 1,
+        RunningOrder: new RunningOrderSettings(1, 5, 0.5f),
+        Lobby: null,
+        Calendar: RallyName,
+        Stages:
+        [
+            new RallyWeekendStage(0, RallyStage, Weather(seed: seed), Weather(0, 28800, seed), "ServiceParkDefault"),
+            new RallyWeekendStage(1, "TestlandS2RidgeForward", Weather(5, 36000, seed), Weather(0, 28800, seed), "NoZone"),
+        ],
+        CustomName: "",
+        IsCustom: true,
+        CalendarInstanceId: Pattern(16, 6 + seed));
+
+    /// <summary>An online Rally Weekend: the lobby in place of the opponents and the running order.</summary>
+    public static RallyWeekend OnlineWeekend(int seed = 0) => OfflineWeekend(seed) with
     {
-        w.FString(name).Int32(1)                       // event_name, n_components
+        Ai = null,
+        RunningOrder = null,
+        Lobby = new LobbySettings(16, 2),
+        Penalty = 2,
+        HardCore = true,
+        Calendar = "TestWeekendMedium",
+        IsCustom = false,
+    };
+
+    /// <summary>The settings of a Single Stage: a weekend's without the calendar, values of their own.</summary>
+    public static RallyWeekend SingleStage(int seed = 0) => OfflineWeekend(seed) with
+    {
+        NextWeather = Weather(6, 43200, seed + 1),
+        Ai = new AiSettings(26, 0.86f, 0, 0, 0.1f, 1, []),
+        RunningOrder = new RunningOrderSettings(1, 2, 0.25f),
+    };
+
+    public static RallyWeekend OnlineSingleStage(int seed = 0) => OnlineWeekend(seed) with
+    {
+        NextWeather = Weather(1, 27000, seed + 2),
+        Lobby = new LobbySettings(12, 2),
+    };
+
+    /// <summary>Free Practice (72 bytes): the settings every mode starts with, the penalty, then bFreeDrive, on.</summary>
+    public static byte[] FreePractice(int seed = 0) =>
+        new Writer().Raw((OfflineWeekend(seed) with { NextWeather = Weather(8, 21600, seed + 3) }).WriteSingleStage()[..0x43])
+                    .Byte(1).Int32(1).ToArray();
+
+    /// <summary>The UUID of version <paramref name="index"/> of an event config's settings context.</summary>
+    public static byte[] VersionUuid(string eventName, int index) => Pattern(16, index + eventName.Length);
+
+    /// <summary>The four components of a rally under way: invented names and bytes.</summary>
+    private static (string Name, byte[] Data)[] RallyState(int seed) =>
+    [
+        ("RaceEventTestProgressComponent", Pattern(4, 20 + seed)),
+        ("RaceEventTestBoardComponent", Pattern(40, 21 + seed)),
+        ("RaceEventTestSnapshotComponent", Pattern(64, 22 + seed)),
+        ("RaceEventTestEntrantsComponent", Pattern(12, 23 + seed)),
+    ];
+
+    private static void EventConfig(Writer w, string name, string kind, byte[] data, int versions = 1,
+                                     (string Name, byte[] Data)[]? state = null)
+    {
+        w.FString(name).Int32(state is null ? 1 : 2)   // event_name, n_contexts
          .FString(RaceEventSettings)
-         .Int32(uuids);
-        for (int u = 0; u < uuids; u++) w.Raw(Pattern(16, u + name.Length));
-        for (int x = 0; x <= uuids; x++) w.Int32(x);  // (nb_uuids + 1) extra ints
-        w.FString($"RaceEventRaceSettings{kind}Component")
+         .Int32(versions);                              // nb_versions
+        for (int v = 0; v < versions; v++) w.Raw(VersionUuid(name, v)).Int32(v + 1);   // UUID, version
+        w.Int32(1)                                      // n_components
+         .FString($"RaceEventRaceSettings{kind}Component")
          .Int32(data.Length).Raw(data);
+
+        if (state is null) return;
+        w.FString(RaceEventState).Int32(0).Int32(state.Length);   // no versions, the components
+        foreach (var (component, bytes) in state)
+            w.FString(component).Int32(bytes.Length).Raw(bytes);
     }
 
     private static void Leaderboard(Writer w, string name, int runs)

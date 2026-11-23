@@ -380,6 +380,115 @@
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Padding" Value="5,3"/>
     </Style>
+    <!-- drop-down lists: the text box's chrome, a chevron, a card-coloured list -->
+    <Style x:Key="ComboToggle" TargetType="ToggleButton">
+      <Setter Property="Focusable" Value="False"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ToggleButton">
+            <Border x:Name="bd" Background="{DynamicResource Brush.Input}" BorderBrush="{DynamicResource Brush.Border}"
+                    BorderThickness="1" CornerRadius="6" SnapsToDevicePixels="True">
+              <Path HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,9,0"
+                    Data="M0,0 L4,4 L8,0" Stroke="{DynamicResource Brush.Muted}" StrokeThickness="1.5"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource Brush.BorderHover}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ComboBox">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="Padding" Value="8,0,26,0"/>
+      <Setter Property="MaxDropDownHeight" Value="320"/>
+      <Setter Property="SnapsToDevicePixels" Value="True"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBox">
+            <Grid>
+              <ToggleButton Style="{StaticResource ComboToggle}" ClickMode="Press"
+                            IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
+              <ContentPresenter IsHitTestVisible="False" Margin="{TemplateBinding Padding}"
+                                VerticalAlignment="Center" HorizontalAlignment="Left"
+                                Content="{TemplateBinding SelectionBoxItem}"
+                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"/>
+              <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" Focusable="False"
+                     IsOpen="{TemplateBinding IsDropDownOpen}" PopupAnimation="Fade">
+                <Border Background="{DynamicResource Brush.Card}" BorderBrush="{DynamicResource Brush.Border}"
+                        BorderThickness="1" CornerRadius="6" Margin="0,2,0,0"
+                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                  <ScrollViewer Margin="2">
+                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                  </ScrollViewer>
+                </Border>
+              </Popup>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.45"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ComboBoxItem">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ComboBoxItem">
+            <Border x:Name="bd" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.Selection}"/>
+              </Trigger>
+              <Trigger Property="IsHighlighted" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.ButtonHover}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <!-- plain lists: the text box's colours, the data grid's selection -->
+    <Style TargetType="ListBox">
+      <Setter Property="Background" Value="{DynamicResource Brush.Input}"/>
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Padding" Value="2"/>
+    </Style>
+    <Style TargetType="ListBoxItem">
+      <Setter Property="Foreground" Value="{DynamicResource Brush.Text}"/>
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ListBoxItem">
+            <Border x:Name="bd" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.ButtonHover}"/>
+              </Trigger>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.Selection}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <!-- read-only path fields: same chrome, muted text, monospaced -->
     <Style x:Key="PathBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
       <Setter Property="IsReadOnly" Value="True"/>
@@ -469,11 +578,10 @@
         <TabItem Header="Setup">        <ui:SetupTab x:Name="TabSetup"/>        </TabItem>
 
         <!-- ══════════════════════════════════════════════════════════════
-             TAB 2 — race configurations: every event config of the player save,
-             with the stage, car and weather selection past them
+             TAB 2 — rallies: the save's Rally Weekends and the library
              ══════════════════════════════════════════════════════════════ -->
-        <TabItem Header="Race">
-          <ui:RaceTab x:Name="TabRace"/>
+        <TabItem Header="Rally">
+          <ui:RallyTab x:Name="TabRally"/>
         </TabItem>
 
       </TabControl>

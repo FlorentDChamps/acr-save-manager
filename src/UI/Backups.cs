@@ -4,7 +4,7 @@ using Microsoft.Win32;
 
 namespace ACRSaveManager.UI;
 
-/// <summary>Backup and restore of a save file, shared by the Setup and Race tabs.</summary>
+/// <summary>Backup and restore of a save file, shared by the Setup and Rally tabs.</summary>
 internal static class Backups
 {
     /// <summary>
